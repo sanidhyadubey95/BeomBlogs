@@ -1,45 +1,52 @@
 /**
- * post-viewer.js
- * Loads a Markdown post and renders it with:
- *   - marked.js  (Markdown to HTML)
- *   - KaTeX      (LaTeX math)
- *   - highlight.js (code syntax)
- *   - [viz: filename.html] -> iframe embeds
+ * post-viewer.js — fixed for GitHub Pages /BeomBlogs/
  */
 
 (async () => {
   const article = document.getElementById('post-article');
   const params  = new URLSearchParams(window.location.search);
   const slug    = params.get('post');
+  const BASE    = '/BeomBlogs';
 
   if (!slug) {
-    article.innerHTML = '<div class="post-body" style="padding:4rem 2rem;"><p>No post specified. <a href="../index.html">Back to home</a></p></div>';
+    article.innerHTML = '<div class="post-body" style="padding:4rem 2rem;"><p>No post specified. <a href="' + BASE + '/index.html">Back to home</a></p></div>';
     return;
   }
 
   // 1. Load metadata
   let meta = null;
   try {
-    const res  = await fetch('/BeomBlogs/posts/index.json');
+    const res  = await fetch(BASE + '/posts/index.json');
     const list = await res.json();
     meta = list.find(p => p.slug === slug);
-  } catch (_) {}
+  } catch (e) {
+    console.error('index.json load failed:', e);
+  }
 
-  // 2. Load Markdown
+  // 2. Load Markdown file
   let markdown = '';
   try {
-    const res = await fetch('/BeomBlogs/posts/' + slug + '.md');
-    if (!res.ok) throw new Error('not found');
+    const res = await fetch(BASE + '/posts/' + slug + '.md');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     markdown = await res.text();
-  } catch (_) {
-    article.innerHTML = '<div class="post-body" style="padding:4rem 2rem;"><h2>Post not found</h2><p><a href="../index.html">Back to home</a></p></div>';
+  } catch (e) {
+    article.innerHTML =
+      '<div class="post-header">' +
+        '<div class="post-header-meta"><a href="' + BASE + '/index.html" class="post-back-link">Home</a></div>' +
+        '<h1 class="post-title">Post not found</h1>' +
+      '</div>' +
+      '<div class="post-body">' +
+        '<p>Could not load <code>' + slug + '.md</code>.</p>' +
+        '<p>Make sure the file exists in your <code>posts/</code> folder and the slug in <code>index.json</code> matches the filename exactly.</p>' +
+        '<p><a href="' + BASE + '/index.html">← Back to home</a></p>' +
+      '</div>';
     return;
   }
 
   // 3. Strip YAML front-matter
   let body = markdown.replace(/^---[\s\S]*?---\n?/, '').trim();
 
-  // 4. Pre-process [viz: filename.html] placeholders
+  // 4. Pre-process [viz: filename.html] → placeholder
   const vizMap = {};
   let vizIdx = 0;
   body = body.replace(/\[viz:\s*([^\]]+)\]/g, function(_, fname) {
@@ -54,21 +61,22 @@
     marked.setOptions({ breaks: false, gfm: true });
     html = marked.parse(body);
   } else {
-    html = '<p style="color:red;">marked.js not loaded.</p><pre>' + body + '</pre>';
+    html = '<p style="color:red;">marked.js not loaded. Check internet connection.</p><pre>' + body + '</pre>';
   }
 
-  // 6. Swap viz placeholders with iframes
+  // 6. Replace viz placeholders with iframes
   Object.keys(vizMap).forEach(function(key) {
     var fname = vizMap[key];
-    var iframe = '<div class="viz-embed">' +
-      '<div class="viz-embed-label">Interactive Visualization</div>' +
-      '<iframe src="../visualizations/' + fname + '" style="height:440px;" frameborder="0" allowfullscreen loading="lazy" title="' + fname + '"></iframe>' +
-      '<p class="viz-embed-caption">' + fname + '</p>' +
+    var iframe =
+      '<div class="viz-embed">' +
+        '<div class="viz-embed-label">Interactive Visualization</div>' +
+        '<iframe src="' + BASE + '/visualizations/' + fname + '" style="height:440px;" frameborder="0" allowfullscreen loading="lazy" title="' + fname + '"></iframe>' +
+        '<p class="viz-embed-caption">' + fname + '</p>' +
       '</div>';
     html = html.replace('<p>' + key + '</p>', iframe);
   });
 
-  // 7. Build article HTML
+  // 7. Build page HTML
   var tagsHtml = (meta && meta.tags)
     ? meta.tags.map(function(t){ return '<span class="post-tag">' + t + '</span>'; }).join('')
     : '';
@@ -78,7 +86,7 @@
   article.innerHTML =
     '<div class="post-header">' +
       '<div class="post-header-meta">' +
-        '<a href="../index.html" class="post-back-link">Home</a>' +
+        '<a href="' + BASE + '/index.html" class="post-back-link">Home</a>' +
         '<div class="post-header-tags">' + tagsHtml + '</div>' +
       '</div>' +
       '<h1 class="post-title">' + title + '</h1>' +
@@ -95,7 +103,7 @@
     });
   }
 
-  // 9. KaTeX math
+  // 9. KaTeX math rendering
   if (typeof renderMathInElement !== 'undefined') {
     renderMathInElement(document.getElementById('post-body'), {
       delimiters: [
