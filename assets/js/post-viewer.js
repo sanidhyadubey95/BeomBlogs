@@ -20,7 +20,7 @@
   // 1. Load metadata
   let meta = null;
   try {
-    const res  = await fetch('../posts/index.json');
+    const res  = await fetch('/BeomBlogs/posts/index.json');
     const list = await res.json();
     meta = list.find(p => p.slug === slug);
   } catch (_) {}
@@ -28,7 +28,7 @@
   // 2. Load Markdown
   let markdown = '';
   try {
-    const res = await fetch('../posts/' + slug + '.md');
+    const res = await fetch('/BeomBlogs/posts/' + slug + '.md');
     if (!res.ok) throw new Error('not found');
     markdown = await res.text();
   } catch (_) {
