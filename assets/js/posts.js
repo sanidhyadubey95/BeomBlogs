@@ -27,6 +27,6 @@ window.BlogPosts = {
   },
 
   slugToUrl(slug, fromRoot = true) {
-    return fromRoot ? `posts/post.html?post=${slug}` : `post.html?post=${slug}`;
+    return '/BeomBlogs/posts/post.html?post=' + slug;
   }
 };
