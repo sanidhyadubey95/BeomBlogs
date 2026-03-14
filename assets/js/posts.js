@@ -10,9 +10,7 @@ window.BlogPosts = {
     if (this._data) return this._data;
     try {
       // Determine base path (works from both root and /posts/ subdir)
-      const isInPostsDir = window.location.pathname.includes('/posts/');
-      const base = isInPostsDir ? '../' : '';
-      const res = await fetch(base + 'posts/index.json');
+      const res = await fetch('/BeomBlogs/posts/index.json');;
       if (!res.ok) throw new Error('Failed to load posts index');
       this._data = await res.json();
       return this._data;
