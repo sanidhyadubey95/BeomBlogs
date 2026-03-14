@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "welcome-to-my-blog",
+    "title": "Welcome to My Blog",
+    "date": "2025-03-14",
+    "tags": ["meta", "introduction"],
+    "excerpt": "A quick introduction to this blog, how it works, and what you can expect to find here.",
+    "featured": true
+  },
+  {
+    "slug": "exploring-the-mandelbrot-set",
+    "title": "Exploring the Mandelbrot Set",
+    "date": "2025-03-10",
+    "tags": ["mathematics", "visualization", "fractals"],
+    "excerpt": "A deep dive into the beautiful world of fractals, with an interactive visualization you can explore in your browser.",
+    "featured": true
+  },
+  {
+    "slug": "markdown-and-math",
+    "title": "Writing Math in Markdown",
+    "date": "2025-03-05",
+    "tags": ["tutorial", "mathematics", "markdown"],
+    "excerpt": "How to write beautiful mathematical equations in your blog posts using LaTeX syntax — rendered right in the browser.",
+    "featured": false
+  }
+]

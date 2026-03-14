@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sample Chart</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; font-family: 'DM Sans', sans-serif; padding: 10px; }
+  canvas { max-width: 100%; }
+</style>
+</head>
+<body>
+<canvas id="myChart"></canvas>
+<script>
+  const ctx = document.getElementById('myChart');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+      datasets: [{
+        label: 'Sample Data',
+        data: [65, 59, 80, 81, 56, 72],
+        backgroundColor: [
+          'rgba(120, 100, 200, 0.7)',
+          'rgba(100, 160, 200, 0.7)',
+          'rgba(80, 200, 160, 0.7)',
+          'rgba(200, 180, 80, 0.7)',
+          'rgba(200, 100, 100, 0.7)',
+          'rgba(150, 200, 100, 0.7)',
+        ],
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'Monthly Sample Data', color: '#555', font: { size: 14 } }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — My Blog</title>
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="noise-overlay"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="site-logo">
+      <span class="logo-bracket">[</span><span class="logo-text">my blog</span><span class="logo-bracket">]</span>
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="nav-link">Home</a>
+      <a href="archive.html" class="nav-link">Archive</a>
+      <a href="about.html" class="nav-link active">About</a>
+    </nav>
+  </div>
+</header>
+<main class="site-main">
+  <div class="page-hero">
+    <h1 class="page-title">About</h1>
+  </div>
+  <div class="about-content prose">
+    <p class="lead">Hi! I'm a curious mind writing about things I find interesting — mathematics, code, data visualizations, and ideas worth exploring.</p>
+    <p>This blog is built entirely with static HTML, CSS, and JavaScript. No server, no database — just files on GitHub Pages. Posts are written in Markdown and rendered in the browser.</p>
+    <h2>What you'll find here</h2>
+    <ul>
+      <li>Technical writing with interactive visualizations</li>
+      <li>Mathematical explorations with rendered equations</li>
+      <li>Data essays with embedded charts and graphs</li>
+      <li>Occasional personal reflections</li>
+    </ul>
+    <h2>How this site works</h2>
+    <p>Posts are written in Markdown and stored as <code>.md</code> files in the <code>posts/</code> folder. The <code>posts/index.json</code> file keeps track of all posts. Interactive visualizations live in the <code>visualizations/</code> folder as self-contained HTML files that get embedded as iframes.</p>
+    <h2>Get in touch</h2>
+    <p>Find me on <a href="#">GitHub</a> or <a href="#">Twitter</a>.</p>
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="footer-copy">Built with ♥ using plain HTML, CSS & JS. <a href="admin/editor.html">Write a post →</a></p>
+  </div>
+</footer>
+</body>
+</html>

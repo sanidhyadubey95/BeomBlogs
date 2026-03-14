@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Blog</title>
+  <link rel="stylesheet" href="assets/css/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="noise-overlay"></div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="site-logo">
+      <span class="logo-bracket">[</span>
+      <span class="logo-text">my blog</span>
+      <span class="logo-bracket">]</span>
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="nav-link active">Home</a>
+      <a href="archive.html" class="nav-link">Archive</a>
+      <a href="about.html" class="nav-link">About</a>
+    </nav>
+    <div class="header-accent"></div>
+  </div>
+</header>
+
+<main class="site-main">
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-kicker">Welcome to my corner of the internet</p>
+      <h1 class="hero-title">Ideas, explorations<br/><em>& experiments</em></h1>
+      <p class="hero-sub">Writing about technology, mathematics, data, and whatever else catches my attention.</p>
+    </div>
+    <div class="hero-deco">
+      <div class="deco-ring ring-1"></div>
+      <div class="deco-ring ring-2"></div>
+      <div class="deco-ring ring-3"></div>
+    </div>
+  </section>
+
+  <section class="posts-section">
+    <div class="section-header">
+      <h2 class="section-title">Latest Posts</h2>
+      <div class="section-line"></div>
+    </div>
+    <div class="posts-grid" id="posts-grid">
+      <!-- Posts are injected by JavaScript -->
+      <div class="posts-loading">Loading posts…</div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p class="footer-copy">Built with ♥ using plain HTML, CSS & JS. <a href="admin/editor.html">Write a post →</a></p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="assets/js/posts.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>

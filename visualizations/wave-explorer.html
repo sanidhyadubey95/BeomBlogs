@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wave Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d0d18; font-family: 'DM Mono', monospace, monospace; color: #a0a0c0; display: flex; flex-direction: column; align-items: center; padding: 12px; gap: 10px; }
+  canvas { border: 1px solid #2a2a4a; border-radius: 4px; max-width: 100%; display: block; }
+  .controls { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; font-size: 11px; }
+  .ctrl-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .ctrl-label { color: #6060a0; font-size: 10px; letter-spacing: 0.06em; }
+  input[type=range] { width: 100px; accent-color: #6060e0; }
+  .val { color: #8080d0; font-size: 11px; min-width: 3ch; text-align: center; }
+  .formula { font-size: 11px; color: #5050a0; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="c" width="560" height="220"></canvas>
+<div class="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">AMPLITUDE</span>
+    <input type="range" id="amp" min="10" max="90" value="60">
+    <span class="val" id="ampVal">60</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">FREQUENCY</span>
+    <input type="range" id="freq" min="1" max="8" value="2" step="0.5">
+    <span class="val" id="freqVal">2</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">PHASE</span>
+    <input type="range" id="phase" min="0" max="628" value="0">
+    <span class="val" id="phaseVal">0</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">WAVE TYPE</span>
+    <select id="waveType" style="background:#1a1a2e;color:#8080c0;border:1px solid #3a3a5a;border-radius:3px;padding:3px 6px;font-size:11px;font-family:inherit;">
+      <option value="sin">sin</option>
+      <option value="cos">cos</option>
+      <option value="square">square</option>
+      <option value="sawtooth">sawtooth</option>
+    </select>
+  </div>
+</div>
+<div class="formula" id="formula">y = 60 · sin(2x + 0.00)</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+let t = 0, animId;
+
+function getWave(x, type, freq, amp, phase) {
+  var v = freq * x + phase;
+  switch(type) {
+    case 'cos':      return Math.cos(v);
+    case 'square':   return Math.sign(Math.sin(v));
+    case 'sawtooth': return ((v / Math.PI) % 2 + 2) % 2 - 1;
+    default:         return Math.sin(v);
+  }
+}
+
+function draw() {
+  var amp   = +document.getElementById('amp').value;
+  var freq  = +document.getElementById('freq').value;
+  var phase = +document.getElementById('phase').value / 100;
+  var type  = document.getElementById('waveType').value;
+
+  document.getElementById('ampVal').textContent   = amp;
+  document.getElementById('freqVal').textContent  = freq;
+  document.getElementById('phaseVal').textContent = (phase).toFixed(2);
+  document.getElementById('formula').textContent  = 'y = ' + amp + ' \u00b7 ' + type + '(' + freq + 'x + ' + phase.toFixed(2) + ')';
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 1;
+  for (var gx = 0; gx <= W; gx += 56) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+  }
+  for (var gy = 0; gy <= H; gy += 44) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  }
+
+  // Axis
+  ctx.strokeStyle = '#3a3a6a';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+
+  // Gradient wave
+  var grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0,   '#4040c0');
+  grad.addColorStop(0.5, '#8050e0');
+  grad.addColorStop(1,   '#40a0c0');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth   = 2.5;
+  ctx.shadowColor = '#6060e0';
+  ctx.shadowBlur  = 10;
+  ctx.beginPath();
+  for (var px = 0; px <= W; px++) {
+    var x = (px / W) * Math.PI * 4;
+    var y = H/2 - amp * getWave(x, type, freq, amp, phase + t);
+    px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Dot at center
+  var cx = W/2;
+  var cy = H/2 - amp * getWave(Math.PI * 2, type, freq, amp, phase + t);
+  ctx.fillStyle = '#c0c0ff';
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+
+  t += 0.02;
+  animId = requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
