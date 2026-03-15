@@ -58,9 +58,9 @@ async function loadPostForEditing(slug) {
   var BASE = '/BeomBlogs';
   editingSlug = slug;
 
-  // Update topbar title to show editing mode
-  var modeEl = document.getElementById('topbar-title');
-  if (modeEl) modeEl.textContent = 'editing: ' + slug;
+  var bar = document.getElementById('editing-bar');
+  if (bar) { bar.style.display = ''; bar.querySelector('.editing-slug').textContent = slug + '.md'; }
+  document.querySelector('.topbar-mode').textContent = 'editing';
 
   // Load metadata
   try {
@@ -104,11 +104,10 @@ async function loadPostForEditing(slug) {
 // ─── Auto-resize ───────────────────────────────────────────────────────────────
 function autoResize(el) {
   var scroller = document.getElementById('editor-scroll');
-  var scrollTop = scroller ? scroller.scrollTop : window.scrollY;
+  var st = scroller ? scroller.scrollTop : window.scrollY;
   el.style.height = 'auto';
   el.style.height = (el.scrollHeight + 2) + 'px';
-  if (scroller) scroller.scrollTop = scrollTop;
-  else window.scrollTo(0, scrollTop);
+  if (scroller) scroller.scrollTop = st; else window.scrollTo(0, st);
 }
 
 // ─── Word count ────────────────────────────────────────────────────────────────
@@ -346,21 +345,25 @@ function doInsertTable(rows, cols) {
   closeTablePicker();
 }
 
-function showTablePicker(e) {
-  var picker = document.getElementById('table-picker');
-  var rect   = e.target.getBoundingClientRect();
-  var top    = rect.bottom + 6;
-  var left   = rect.left;
-  if (left + 180 > window.innerWidth) left = window.innerWidth - 186;
-  if (top  + 180 > window.innerHeight) top = rect.top - 180;
-  picker.style.top  = top  + 'px';
-  picker.style.left = left + 'px';
-  picker.classList.add('visible');
+function showTablePicker(e, btnEl) {
+  e.preventDefault();
   e.stopPropagation();
-  // Reset highlights
+  var picker = document.getElementById('table-picker');
+  // btnEl is passed from onclick="showTablePicker(event,this)"
+  var btn  = btnEl || e.currentTarget || e.target;
+  while (btn && btn.tagName !== 'BUTTON') btn = btn.parentElement;
+  var rect = btn.getBoundingClientRect();
+  var top  = rect.bottom + 6;
+  var left = rect.left;
+  if (left + 160 > window.innerWidth)  left = window.innerWidth  - 164;
+  if (top  + 200 > window.innerHeight) top  = rect.top - 200;
+  picker.style.top  = Math.max(4, top)  + 'px';
+  picker.style.left = Math.max(4, left) + 'px';
+  picker.classList.add('visible');
+  // Reset highlights and label
   document.querySelectorAll('.table-cell').forEach(function(c){ c.classList.remove('hover'); });
   var lbl = document.getElementById('table-size-label');
-  if (lbl) lbl.textContent = 'Hover to pick size';
+  if (lbl) lbl.textContent = 'Hover to pick size, click to insert';
 }
 
 function closeTablePicker() {
