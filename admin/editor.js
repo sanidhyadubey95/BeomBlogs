@@ -1,586 +1,401 @@
 /**
- * editor.js — Full drag-and-drop blog editor logic
+ * editor.js — Unified rich writing editor
+ * Single textarea approach with floating toolbar, slash commands,
+ * emoji picker, table picker, speech-to-text.
  */
 
-// ─── State ──────────────────────────────────────────────────────────────────
-var blocks       = [];   // Array of { id, type, data }
-var blockIdCtr   = 0;
-var tags         = [];
-var dragSrcType  = null; // block type being dragged from palette
-var dragSrcId    = null; // block id being reordered
-var activeTextarea = null; // currently focused textarea/input in editor
-var currentTab   = 'edit';
+// ─── State ────────────────────────────────────────────────────────────────────
+var tags        = [];
+var currentTab  = 'edit';
+var lastFocused = null;
+var speechRec   = null;
+var speechOn    = false;
+var previewTimer= null;
+var slashStart  = -1; // cursor position where / was typed
 
-// ─── Init ────────────────────────────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   // Set today's date
-  var today = new Date();
-  var yyyy  = today.getFullYear();
-  var mm    = String(today.getMonth() + 1).padStart(2, '0');
-  var dd    = String(today.getDate()).padStart(2, '0');
-  document.getElementById('meta-date').value = yyyy + '-' + mm + '-' + dd;
+  var d = new Date();
+  document.getElementById('meta-date').value =
+    d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 
-  initPalette();
-  initDropArea();
+  // Auto-resize all textareas on load
+  ['post-title','post-subtitle','main-editor'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) { autoResize(el); el.addEventListener('focus', function(){ lastFocused = el; }); }
+  });
+
+  buildTableGrid();
+  buildEmojiPicker();
+  initSpeech();
   updateSlug();
 
-  // Check if editing an existing post (?edit=slug)
-  var params   = new URLSearchParams(window.location.search);
-  var editSlug = params.get('edit');
-  if (editSlug) {
-    loadPostForEditing(editSlug);
-  } else {
-    addBlock('markdown', 'Write your post here...\n\nUse **bold**, _italic_, `inline code`, and the toolbar above.\n\nDrag more blocks from the left panel.');
-  }
+  // Close popups on outside click
+  document.addEventListener('mousedown', function(e) {
+    if (!e.target.closest('#slash-menu'))   closeSlash();
+    if (!e.target.closest('#emoji-picker') && !e.target.closest('.ib-btn')) closeEmoji();
+    if (!e.target.closest('#table-picker') && !e.target.closest('.ib-btn')) closeTablePicker();
+    if (!e.target.closest('#float-toolbar')) {
+      setTimeout(function(){ if (!window.getSelection().toString()) hideFloatToolbar(); }, 100);
+    }
+  });
+
+  document.getElementById('main-editor').focus();
+  lastFocused = document.getElementById('main-editor');
 });
 
-// ─── Slug ────────────────────────────────────────────────────────────────────
+// ─── Auto-resize textarea ─────────────────────────────────────────────────────
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = (el.scrollHeight + 2) + 'px';
+}
+
+// ─── Word count ───────────────────────────────────────────────────────────────
+function updateWC() {
+  var title = document.getElementById('post-title').value;
+  var body  = document.getElementById('main-editor').value;
+  var words = (title + ' ' + body).trim().split(/\s+/).filter(function(w){ return w.length > 0; }).length;
+  document.getElementById('word-count').textContent = words + ' word' + (words === 1 ? '' : 's');
+}
+
+// ─── Slug ─────────────────────────────────────────────────────────────────────
 function updateSlug() {
-  var title = document.getElementById('meta-title').value;
-  var slug  = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-') || 'my-post';
+  var title = document.getElementById('post-title').value;
+  var slug  = title.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g,'').trim()
+    .replace(/\s+/g,'-').replace(/-+/g,'-') || 'my-post';
   document.getElementById('slug-display').textContent = slug;
   return slug;
 }
 
-// ─── Tags ────────────────────────────────────────────────────────────────────
+// ─── Tags ─────────────────────────────────────────────────────────────────────
 function handleTagInput(e) {
   if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault();
-    var val = e.target.value.replace(/,/g, '').trim();
-    if (val && !tags.includes(val)) {
-      tags.push(val);
-      renderTags();
-    }
+    var val = e.target.value.replace(/,/g,'').trim();
+    if (val && !tags.includes(val)) { tags.push(val); renderTags(); }
     e.target.value = '';
-  } else if (e.key === 'Backspace' && e.target.value === '' && tags.length) {
-    tags.pop();
-    renderTags();
+  } else if (e.key === 'Backspace' && !e.target.value && tags.length) {
+    tags.pop(); renderTags();
   }
 }
-
 function renderTags() {
-  var wrap  = document.getElementById('tags-wrap');
-  var input = document.getElementById('tag-input');
-  // Remove existing chips
+  var wrap = document.getElementById('tags-wrap');
+  var inp  = document.getElementById('tag-input');
   wrap.querySelectorAll('.tag-chip').forEach(function(c){ c.remove(); });
   tags.forEach(function(tag, i) {
-    var chip = document.createElement('span');
-    chip.className = 'tag-chip';
-    chip.innerHTML = tag + '<button class="tag-chip-remove" onclick="removeTag(' + i + ')">x</button>';
-    wrap.insertBefore(chip, input);
+    var chip = document.createElement('span'); chip.className = 'tag-chip';
+    chip.innerHTML = tag + '<button class="tag-chip-rm" onclick="removeTag('+i+')">×</button>';
+    wrap.insertBefore(chip, inp);
+  });
+}
+function removeTag(i) { tags.splice(i,1); renderTags(); }
+
+// ─── Insert helpers ───────────────────────────────────────────────────────────
+function getTA() {
+  // Use lastFocused, defaulting to main editor
+  var ta = lastFocused;
+  if (!ta || (ta.tagName !== 'TEXTAREA' && ta.tagName !== 'INPUT')) {
+    ta = document.getElementById('main-editor');
+  }
+  return ta;
+}
+
+function insertSnippet(before, after) {
+  var ta  = getTA();
+  var s   = ta.selectionStart, e = ta.selectionEnd;
+  var sel = ta.value.substring(s, e);
+  // Fix escaped newlines in string literals
+  before = before.replace(/\\n/g, '\n');
+  after  = after.replace(/\\n/g, '\n');
+  ta.value = ta.value.substring(0,s) + before + sel + after + ta.value.substring(e);
+  var cur = s + before.length + sel.length;
+  ta.selectionStart = ta.selectionEnd = cur;
+  ta.focus(); lastFocused = ta;
+  autoResize(ta); updateWC(); schedulePreview();
+}
+
+function insertLink() {
+  var ta  = getTA();
+  var sel = ta.value.substring(ta.selectionStart, ta.selectionEnd) || 'link text';
+  var url = prompt('URL:'); if (!url) return;
+  insertSnippet('[' + sel + '](', url + ')');
+}
+
+// ─── Editor key handler (slash menu + tab indent) ─────────────────────────────
+function handleEditorKey(e) {
+  var ta  = e.target;
+  var pos = ta.selectionStart;
+
+  // Tab → indent with 2 spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    ta.value = ta.value.substring(0,pos) + '  ' + ta.value.substring(pos);
+    ta.selectionStart = ta.selectionEnd = pos + 2;
+    return;
+  }
+
+  // Slash at line start → show slash menu
+  if (e.key === '/') {
+    var lineStart = ta.value.lastIndexOf('\n', pos-1) + 1;
+    var lineContent = ta.value.substring(lineStart, pos).trim();
+    if (lineContent === '') {
+      slashStart = pos;
+      setTimeout(function(){ positionSlashMenu(ta); }, 10);
+    }
+    return;
+  }
+
+  // Close slash menu on Escape or Enter (if not navigating menu)
+  if (e.key === 'Escape') { closeSlash(); return; }
+
+  // If slash menu open and user keeps typing, filter it
+  if (slashStart >= 0 && e.key !== 'Enter') {
+    setTimeout(function(){
+      var typed = ta.value.substring(slashStart + 1, ta.selectionStart).toLowerCase();
+      filterSlashMenu(typed);
+    }, 10);
+  }
+}
+
+// ─── Slash menu ───────────────────────────────────────────────────────────────
+function positionSlashMenu(ta) {
+  var menu  = document.getElementById('slash-menu');
+  var rect  = ta.getBoundingClientRect();
+  // Approximate caret position using line height
+  var lines = ta.value.substring(0, ta.selectionStart).split('\n');
+  var lineH = 28; // approx line height in px
+  var top   = rect.top + (lines.length * lineH) - ta.scrollTop + 10;
+  var left  = rect.left + 16;
+  if (top + 280 > window.innerHeight) top = top - 280;
+  menu.style.top  = top + 'px';
+  menu.style.left = left + 'px';
+  menu.classList.add('visible');
+}
+
+function filterSlashMenu(query) {
+  var items = document.querySelectorAll('.slash-item');
+  items.forEach(function(item) {
+    var label = item.querySelector('.slash-label').textContent.toLowerCase();
+    item.style.display = (!query || label.includes(query)) ? '' : 'none';
   });
 }
 
-function removeTag(i) {
-  tags.splice(i, 1);
-  renderTags();
+function doSlash(btn) {
+  var ta     = document.getElementById('main-editor');
+  var before = btn.dataset.insert.replace(/\\n/g, '\n');
+  var after  = (btn.dataset.after || '').replace(/\\n/g, '\n');
+  // Remove the slash character that triggered the menu
+  if (slashStart >= 0) {
+    var typed = ta.value.substring(slashStart, ta.selectionStart);
+    ta.value  = ta.value.substring(0, slashStart) + ta.value.substring(slashStart + typed.length);
+    ta.selectionStart = ta.selectionEnd = slashStart;
+  }
+  insertSnippet(before, after);
+  closeSlash();
 }
 
-// ─── Palette drag ────────────────────────────────────────────────────────────
-function initPalette() {
-  document.querySelectorAll('.block-btn').forEach(function(btn) {
-    btn.addEventListener('dragstart', function(e) {
-      dragSrcType = btn.dataset.type;
-      dragSrcId   = null;
-      btn.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'copy';
-    });
-    btn.addEventListener('dragend', function() {
-      btn.classList.remove('dragging');
-    });
-    // Click to add
+function closeSlash() {
+  document.getElementById('slash-menu').classList.remove('visible');
+  slashStart = -1;
+}
+
+// ─── Float toolbar ────────────────────────────────────────────────────────────
+function showFloatToolbar() {
+  var sel  = window.getSelection();
+  var text = sel.toString();
+  var tb   = document.getElementById('float-toolbar');
+  if (!text || text.length < 1) { hideFloatToolbar(); return; }
+  var range = sel.getRangeAt(0);
+  var rect  = range.getBoundingClientRect();
+  tb.style.top  = (rect.top + window.scrollY - 44) + 'px';
+  tb.style.left = (rect.left + rect.width/2 - 120) + 'px';
+  tb.classList.add('visible');
+}
+
+function hideFloatToolbar() {
+  document.getElementById('float-toolbar').classList.remove('visible');
+}
+
+function ftWrap(before, after) {
+  insertSnippet(before, after);
+  hideFloatToolbar();
+}
+
+function ftLink() {
+  insertLink();
+  hideFloatToolbar();
+}
+
+function ftHeading() {
+  var ta  = getTA();
+  var pos = ta.selectionStart;
+  var ls  = ta.value.lastIndexOf('\n', pos-1) + 1;
+  ta.value = ta.value.substring(0,ls) + '## ' + ta.value.substring(ls);
+  ta.focus(); autoResize(ta); schedulePreview();
+  hideFloatToolbar();
+}
+
+// ─── Table picker ─────────────────────────────────────────────────────────────
+function buildTableGrid() {
+  var grid  = document.getElementById('table-grid');
+  var ROWS  = 5, COLS = 6;
+  for (var r = 1; r <= ROWS; r++) {
+    for (var c = 1; c <= COLS; c++) {
+      var cell = document.createElement('div');
+      cell.className = 'table-cell';
+      cell.dataset.r = r; cell.dataset.c = c;
+      cell.addEventListener('mouseover', highlightTable);
+      cell.addEventListener('click', insertTable);
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function highlightTable(e) {
+  var r = +e.target.dataset.r, c = +e.target.dataset.c;
+  document.querySelectorAll('.table-cell').forEach(function(cell) {
+    cell.classList.toggle('hover', +cell.dataset.r <= r && +cell.dataset.c <= c);
+  });
+  document.getElementById('table-size-label').textContent = r + ' × ' + c + ' table';
+}
+
+function insertTable(e) {
+  var rows = +e.target.dataset.r, cols = +e.target.dataset.c;
+  var header = '| ' + Array(cols).fill('Col').map(function(v,i){ return v+(i+1); }).join(' | ') + ' |';
+  var sep    = '| ' + Array(cols).fill('---').join(' | ') + ' |';
+  var row    = '| ' + Array(cols).fill('     ').join(' | ') + ' |';
+  var rowsArr = [row];
+  for (var i = 1; i < rows; i++) rowsArr.push(row);
+  var table = '\n' + header + '\n' + sep + '\n' + rowsArr.join('\n') + '\n';
+  insertSnippet(table, '');
+  closeTablePicker();
+}
+
+function showTablePicker(e) {
+  var picker = document.getElementById('table-picker');
+  var rect   = e.target.getBoundingClientRect();
+  picker.style.top  = (rect.bottom + 6) + 'px';
+  picker.style.left = rect.left + 'px';
+  picker.classList.add('visible');
+  e.stopPropagation();
+}
+
+function closeTablePicker() {
+  document.getElementById('table-picker').classList.remove('visible');
+}
+
+// ─── Emoji picker ─────────────────────────────────────────────────────────────
+var emojiData = {
+  'Smileys': ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🫠','🤗','🤔','🫣','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🫥','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'],
+  'People': ['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','🫵','👍','👎','✊','👊','🤛','🤜','👏','🫶','🙌','👐','🤲','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','🫦','💋','👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵'],
+  'Nature': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐟','🐠','🐬','🦭','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🐓','🦃','🦤','🦚','🦜','🦢','🐇','🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿','🦔'],
+  'Food': ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🫑','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🦴','🌭','🍔','🍟','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🫔','🥗','🥘','🫕','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥮','🍢','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','☕','🫖','🍵','🧉','🍺','🍻','🥂','🍷','🫗','🥃','🍸','🍹','🧊'],
+  'Travel': ['🚗','🚕','🚙','🚌','🚎','🏎','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍','🛵','🛺','🚲','🛴','🛹','🛼','🚏','🛣','🛤','⛽','🛞','🚨','🚥','🚦','🛑','🚧','⚓','🛟','⛵','🛶','🚤','🛳','⛴','🛥','🚢','✈️','🛩','🛫','🛬','🪂','💺','🚁','🚟','🚠','🚡','🛰','🚀','🛸','🪐','⭐','🌙','☀️','⛅','🌈','🌊','🗻','🏔','⛰','🌋','🗾','🏕','🏖','🏜','🏝','🏞','🏟','🏛','🏗','🧱','🏘','🏚','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽'],
+  'Objects': ['⌚','📱','📲','💻','⌨️','🖥','🖨','🖱','🖲','💽','💾','💿','📀','🧮','📷','📸','📹','🎥','📽','🎞','📞','☎️','📟','📠','📺','📻','🧭','⏱','⏲','⏰','🕰','⌛','⏳','📡','🔋','🪫','🔌','💡','🔦','🕯','🪔','🧯','🛢','💰','💴','💵','💶','💷','💸','💳','🪙','💹','📈','📉','📊','📋','📌','📍','📎','🖇','📏','📐','✂️','🗃','🗄','🗑','🔒','🔓','🔏','🔐','🔑','🗝','🔨','🪓','⛏','⚒','🛠','🗡','⚔️','🛡','🪚','🔧','🪛','🔩','⚙️','🗜','🔗','⛓','🪝','🧲','🪜','⚗️','🧪','🧫','🧬','🔭','🔬'],
+  'Symbols': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','🆔','⚛️','🉑','☢️','☣️','📴','📳','🈶','🈚','🈸','🈺','🈷️','✴️','🆚','💮','🉐','㊙️','㊗️','🈴','🈵','🈹','🈲','🅰️','🅱️','🆎','🆑','🅾️','🆘','❌','⭕','🛑','⛔','📛','🚫','💯','💢','♨️','🚷','🚯','🚳','🚱','🔞','📵','🚭','❗','❕','❓','❔','‼️','⁉️','🔅','🔆','〽️','⚠️','🚸','🔱','⚜️','🔰','♻️','✅','🈯','💹','❎','🌐','💠','Ⓜ️','🌀','💤','🏧','🚾','♿','🅿️','🛗','🈳','🈂️','🛂','🛃','🛄','🛅','🚹','🚺','🚼','⚧','🚻','🚮','🎦','📶','🈁','🔣','ℹ️','🔤','🔡','🔠','🆖','🆗','🆙','🆒','🆕','🆓','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','🔢','⏏️','▶️','⏸','⏹','⏺','⏭','⏮','⏩','⏪','⏫','⏬','◀️','🔼','🔽','➡️','⬅️','⬆️','⬇️','↗️','↘️','↙️','↖️','↕️','↔️','↪️','↩️','⤴️','⤵️','🔀','🔁','🔂','🔄','🔃','🎵','🎶','➕','➖','➗','✖️','♾','💲','💱','™️','©️','®️','〰️','➰','➿','🔚','🔙','🔛','🔝','🔜','✔️','☑️','🔘','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','🔺','🔻','🔸','🔹','🔶','🔷','🔳','🔲','▪️','▫️','◾','◽','◼️','◻️','🟥','🟧','🟨','🟩','🟦','🟪','⬛','⬜','🟫','🔈','🔇','🔉','🔊','🔔','🔕','📣','📢','👁‍🗨','💬','💭','🗯','♠️','♣️','♥️','♦️','🃏','🎴','🀄']
+};
+
+var currentEmojiCat = 'Smileys';
+
+function buildEmojiPicker() {
+  var catsEl  = document.getElementById('emoji-cats');
+  var gridEl  = document.getElementById('emoji-grid');
+  Object.keys(emojiData).forEach(function(cat) {
+    var btn = document.createElement('button'); btn.className = 'emoji-cat-btn'; btn.textContent = cat;
+    if (cat === currentEmojiCat) btn.classList.add('active');
     btn.addEventListener('click', function() {
-      addBlock(btn.dataset.type);
-      // Scroll to bottom
-      var area = document.getElementById('drop-area');
-      area.scrollTop = area.scrollHeight;
+      currentEmojiCat = cat;
+      catsEl.querySelectorAll('.emoji-cat-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      renderEmojiGrid(emojiData[cat]);
     });
+    catsEl.appendChild(btn);
+  });
+  renderEmojiGrid(emojiData[currentEmojiCat]);
+}
+
+function renderEmojiGrid(list) {
+  var grid = document.getElementById('emoji-grid'); grid.innerHTML = '';
+  list.forEach(function(em) {
+    var btn = document.createElement('button'); btn.className = 'emoji-btn'; btn.textContent = em;
+    btn.title = em;
+    btn.addEventListener('click', function() { insertSnippet(em,''); closeEmoji(); });
+    grid.appendChild(btn);
   });
 }
 
-// ─── Drop area ───────────────────────────────────────────────────────────────
-function initDropArea() {
-  var area = document.getElementById('drop-area');
-
-  area.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    area.classList.add('drag-over');
-  });
-  area.addEventListener('dragleave', function(e) {
-    if (!area.contains(e.relatedTarget)) area.classList.remove('drag-over');
-  });
-  area.addEventListener('drop', function(e) {
-    e.preventDefault();
-    area.classList.remove('drag-over');
-    if (dragSrcType && !dragSrcId) {
-      addBlock(dragSrcType);
-    }
-    dragSrcType = null;
-  });
+function filterEmoji() {
+  var q = document.getElementById('emoji-search').value.toLowerCase();
+  if (!q) { renderEmojiGrid(emojiData[currentEmojiCat]); return; }
+  var all = [].concat.apply([], Object.values(emojiData));
+  renderEmojiGrid(all.filter(function(e){ return e.toLowerCase().includes(q); }).slice(0,64));
 }
 
-// ─── Block management ────────────────────────────────────────────────────────
-function addBlock(type, defaultData) {
-  var id = 'block-' + (blockIdCtr++);
-  var data = defaultData || getDefaultData(type);
-  blocks.push({ id: id, type: type, data: data });
-
-  var hint = document.getElementById('drop-hint');
-  if (hint) hint.style.display = 'none';
-
-  var el = createBlockEl(id, type, data);
-  document.getElementById('drop-area').appendChild(el);
-
-  // Focus first textarea/input
-  var ta = el.querySelector('textarea, input[type="text"], input:not([type])');
-  if (ta) { ta.focus(); if (ta.tagName === 'TEXTAREA') ta.select(); }
-
-  refreshPreview();
-  return id;
+function showEmojiPicker(e) {
+  var picker = document.getElementById('emoji-picker');
+  var rect   = e.target.getBoundingClientRect();
+  var top    = rect.bottom + 6;
+  var left   = rect.left;
+  if (left + 310 > window.innerWidth) left = window.innerWidth - 316;
+  if (top + 310 > window.innerHeight) top = rect.top - 320;
+  picker.style.top  = top + 'px';
+  picker.style.left = left + 'px';
+  picker.classList.add('visible');
+  document.getElementById('emoji-search').focus();
+  e.stopPropagation();
 }
 
-function getDefaultData(type) {
-  var defaults = {
-    markdown: '## New Section\n\nWrite your content here...',
-    heading:  'Section Title',
-    math:     'E = mc^2',
-    code:     '// Your code here\nconsole.log("Hello, world!");',
-    viz:      '',
-    image:    '',
-    callout:  'Important note: add your callout text here.',
-    divider:  ''
-  };
-  return defaults[type] || '';
-}
+function closeEmoji() { document.getElementById('emoji-picker').classList.remove('visible'); }
 
-function removeBlock(id) {
-  blocks = blocks.filter(function(b){ return b.id !== id; });
-  var el = document.getElementById(id);
-  if (el) el.remove();
-  if (!blocks.length) {
-    var hint = document.getElementById('drop-hint');
-    if (hint) hint.style.display = '';
-  }
-  refreshPreview();
-}
-
-function moveBlock(id, dir) {
-  var idx = blocks.findIndex(function(b){ return b.id === id; });
-  if (idx < 0) return;
-  var newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= blocks.length) return;
-
-  // Swap in array
-  var tmp = blocks[idx];
-  blocks[idx] = blocks[newIdx];
-  blocks[newIdx] = tmp;
-
-  // Re-render all blocks in correct order
-  var area = document.getElementById('drop-area');
-  var hint = document.getElementById('drop-hint');
-  // Remove all block elements
-  area.querySelectorAll('.editor-block').forEach(function(el){ el.remove(); });
-  // Re-append in order
-  blocks.forEach(function(b) {
-    var el = document.getElementById(b.id);
-    if (!el) {
-      el = createBlockEl(b.id, b.type, b.data);
-    }
-    area.appendChild(el);
-  });
-  refreshPreview();
-}
-
-function getBlockData(id) {
-  var b = blocks.find(function(b){ return b.id === id; });
-  if (!b) return '';
-  var el = document.getElementById(id);
-  if (!el) return b.data;
-
-  if (b.type === 'markdown') {
-    var ta = el.querySelector('.markdown-editor');
-    return ta ? ta.value : b.data;
-  } else if (b.type === 'heading') {
-    var inp = el.querySelector('.heading-editor');
-    return inp ? inp.value : b.data;
-  } else if (b.type === 'math') {
-    var ta = el.querySelector('.math-editor');
-    return ta ? ta.value : b.data;
-  } else if (b.type === 'code') {
-    var ta  = el.querySelector('.code-editor');
-    var sel = el.querySelector('.code-lang-select');
-    var lang = sel ? sel.value : 'javascript';
-    return JSON.stringify({ lang: lang, code: ta ? ta.value : b.data });
-  } else if (b.type === 'viz') {
-    var inp = el.querySelector('.viz-filename-input');
-    return inp ? inp.value : b.data;
-  } else if (b.type === 'image') {
-    var url = el.querySelector('.image-url-input');
-    var alt = el.querySelector('.image-alt-input');
-    return JSON.stringify({ url: url ? url.value : '', alt: alt ? alt.value : '' });
-  } else if (b.type === 'callout') {
-    var ta = el.querySelector('.callout-textarea');
-    return ta ? ta.value : b.data;
-  } else if (b.type === 'divider') {
-    return '';
-  }
-  return b.data;
-}
-
-// ─── Block element creation ──────────────────────────────────────────────────
-function createBlockEl(id, type, data) {
-  var el = document.createElement('div');
-  el.className = 'editor-block';
-  el.id = id;
-  el.setAttribute('draggable', 'true');
-
-  // Drag-to-reorder
-  el.addEventListener('dragstart', function(e) {
-    dragSrcId   = id;
-    dragSrcType = null;
-    e.dataTransfer.effectAllowed = 'move';
-    setTimeout(function(){ el.style.opacity = '0.4'; }, 0);
-  });
-  el.addEventListener('dragend', function() {
-    el.style.opacity = '';
-    dragSrcId = null;
-    document.querySelectorAll('.editor-block').forEach(function(b){ b.classList.remove('drag-target'); });
-  });
-  el.addEventListener('dragover', function(e) {
-    if (!dragSrcId || dragSrcId === id) return;
-    e.preventDefault();
-    el.classList.add('drag-target');
-  });
-  el.addEventListener('dragleave', function() { el.classList.remove('drag-target'); });
-  el.addEventListener('drop', function(e) {
-    if (!dragSrcId || dragSrcId === id) return;
-    e.preventDefault();
-    el.classList.remove('drag-target');
-    // Move dragSrcId block before this block
-    var srcIdx  = blocks.findIndex(function(b){ return b.id === dragSrcId; });
-    var tgtIdx  = blocks.findIndex(function(b){ return b.id === id; });
-    if (srcIdx < 0 || tgtIdx < 0) return;
-    var moved = blocks.splice(srcIdx, 1)[0];
-    var insertAt = tgtIdx > srcIdx ? tgtIdx - 1 : tgtIdx;
-    blocks.splice(insertAt, 0, moved);
-    // Re-render order
-    var area = document.getElementById('drop-area');
-    area.querySelectorAll('.editor-block').forEach(function(el){ el.remove(); });
-    blocks.forEach(function(b) {
-      var bel = document.getElementById(b.id) || createBlockEl(b.id, b.type, b.data);
-      area.appendChild(bel);
-    });
-    refreshPreview();
-  });
-
-  // Handle bar
-  var typeLabels = {
-    markdown:'Markdown', heading:'Heading', math:'LaTeX Math',
-    code:'Code', viz:'Visualization', image:'Image',
-    callout:'Callout', divider:'Divider'
-  };
-
-  var handle = document.createElement('div');
-  handle.className = 'block-handle';
-  handle.innerHTML =
-    '<div class="block-handle-left">' +
-      '<span class="handle-dots" title="Drag to reorder">::::</span>' +
-      '<span class="block-type-label">' + (typeLabels[type] || type) + '</span>' +
-    '</div>' +
-    '<div class="block-actions">' +
-      '<button class="block-action-btn" title="Move up" onclick="moveBlock(\'' + id + '\',-1)">up</button>' +
-      '<button class="block-action-btn" title="Move down" onclick="moveBlock(\'' + id + '\',1)">dn</button>' +
-      '<button class="block-action-btn" title="Delete" onclick="removeBlock(\'' + id + '\')">rm</button>' +
-    '</div>';
-  el.appendChild(handle);
-
-  // Content
-  var content = buildBlockContent(id, type, data);
-  el.appendChild(content);
-
-  return el;
-}
-
-function buildBlockContent(id, type, data) {
-  var wrap = document.createElement('div');
-
-  if (type === 'markdown') {
-    var ta = document.createElement('textarea');
-    ta.className = 'markdown-editor';
-    ta.placeholder = 'Write Markdown here...';
-    ta.value = data;
-    ta.addEventListener('input', function() {
-      autoResize(ta);
-      syncBlockData(id, ta.value);
-      refreshPreview();
-    });
-    ta.addEventListener('focus', function(){ activeTextarea = ta; });
-    autoResize(ta);
-    wrap.appendChild(ta);
-
-  } else if (type === 'heading') {
-    var inp = document.createElement('input');
-    inp.type = 'text';
-    inp.className = 'heading-editor';
-    inp.placeholder = 'Section heading...';
-    inp.value = data;
-    inp.addEventListener('input', function() {
-      syncBlockData(id, inp.value);
-      refreshPreview();
-    });
-    inp.addEventListener('focus', function(){ activeTextarea = inp; });
-    wrap.appendChild(inp);
-
-  } else if (type === 'math') {
-    var ta = document.createElement('textarea');
-    ta.className = 'math-editor';
-    ta.placeholder = 'LaTeX here, e.g.  \\frac{a}{b} = c';
-    ta.value = data;
-    var preview = document.createElement('div');
-    preview.className = 'math-preview';
-
-    function renderMath() {
-      syncBlockData(id, ta.value);
-      try {
-        katex.render(ta.value, preview, { displayMode: true, throwOnError: false });
-      } catch(e) {
-        preview.textContent = ta.value;
-      }
-      refreshPreview();
-    }
-    ta.addEventListener('input', renderMath);
-    ta.addEventListener('focus', function(){ activeTextarea = ta; });
-    wrap.appendChild(ta);
-    wrap.appendChild(preview);
-    renderMath();
-
-  } else if (type === 'code') {
-    var parsed = {};
-    try { parsed = JSON.parse(data); } catch(_) { parsed = { lang: 'javascript', code: data }; }
-
-    var sel = document.createElement('select');
-    sel.className = 'code-lang-select';
-    ['javascript','python','bash','html','css','json','typescript','rust','go','java','cpp','markdown'].forEach(function(l){
-      var opt = document.createElement('option');
-      opt.value = l; opt.textContent = l;
-      if (l === (parsed.lang || 'javascript')) opt.selected = true;
-      sel.appendChild(opt);
-    });
-
-    var ta = document.createElement('textarea');
-    ta.className = 'code-editor';
-    ta.placeholder = '// Your code here';
-    ta.value = parsed.code || '';
-    ta.addEventListener('input', function() {
-      syncBlockData(id, JSON.stringify({ lang: sel.value, code: ta.value }));
-      refreshPreview();
-    });
-    ta.addEventListener('focus', function(){ activeTextarea = ta; });
-    sel.addEventListener('change', function() {
-      syncBlockData(id, JSON.stringify({ lang: sel.value, code: ta.value }));
-    });
-    wrap.appendChild(sel);
-    wrap.appendChild(ta);
-
-  } else if (type === 'viz') {
-    var inner = document.createElement('div');
-    inner.className = 'viz-block-inner';
-    var lbl = document.createElement('label');
-    lbl.textContent = 'Visualization filename (in visualizations/ folder)';
-    var inp = document.createElement('input');
-    inp.type = 'text';
-    inp.className = 'viz-filename-input';
-    inp.placeholder = 'e.g.  my-chart.html';
-    inp.value = data;
-    inp.addEventListener('input', function() {
-      syncBlockData(id, inp.value);
-      refreshPreview();
-    });
-    var note = document.createElement('p');
-    note.className = 'viz-note';
-    note.textContent = 'The file will be embedded as an interactive iframe in the published post.';
-    inner.appendChild(lbl);
-    inner.appendChild(inp);
-    inner.appendChild(note);
-    wrap.appendChild(inner);
-
-  } else if (type === 'image') {
-    var parsed = {};
-    try { parsed = JSON.parse(data); } catch(_) { parsed = { url: data || '', alt: '' }; }
-    var inner = document.createElement('div');
-    inner.className = 'image-block-inner';
-    var urlInp = document.createElement('input');
-    urlInp.type = 'text';
-    urlInp.className = 'image-url-input';
-    urlInp.placeholder = 'Image URL or path, e.g. assets/images/photo.jpg';
-    urlInp.value = parsed.url || '';
-    var altInp = document.createElement('input');
-    altInp.type = 'text';
-    altInp.className = 'image-alt-input';
-    altInp.placeholder = 'Alt text (describe the image)';
-    altInp.value = parsed.alt || '';
-    var prev = document.createElement('div');
-    prev.className = 'image-preview';
-
-    function updateImg() {
-      var val = JSON.stringify({ url: urlInp.value, alt: altInp.value });
-      syncBlockData(id, val);
-      refreshPreview();
-      if (urlInp.value) {
-        prev.innerHTML = '<img src="' + urlInp.value + '" alt="' + altInp.value + '" style="max-height:160px;border-radius:4px;border:1px solid var(--border);">';
-      } else {
-        prev.innerHTML = '';
-      }
-    }
-    urlInp.addEventListener('input', updateImg);
-    altInp.addEventListener('input', updateImg);
-    inner.appendChild(urlInp);
-    inner.appendChild(altInp);
-    inner.appendChild(prev);
-    wrap.appendChild(inner);
-    updateImg();
-
-  } else if (type === 'callout') {
-    var div = document.createElement('div');
-    div.className = 'callout-block';
-    var ta = document.createElement('textarea');
-    ta.className = 'callout-textarea';
-    ta.placeholder = 'Callout text...';
-    ta.value = data;
-    ta.addEventListener('input', function() {
-      autoResize(ta);
-      syncBlockData(id, ta.value);
-      refreshPreview();
-    });
-    ta.addEventListener('focus', function(){ activeTextarea = ta; });
-    div.appendChild(ta);
-    wrap.appendChild(div);
-
-  } else if (type === 'divider') {
-    var d = document.createElement('div');
-    d.className = 'divider-block';
-    d.innerHTML = '<hr> divider <hr>';
-    wrap.appendChild(d);
-  }
-
-  return wrap;
-}
-
-function syncBlockData(id, val) {
-  var b = blocks.find(function(b){ return b.id === id; });
-  if (b) b.data = val;
-}
-
-// ─── Toolbar helpers ─────────────────────────────────────────────────────────
-function wrapActive(before, after) {
-  var ta = activeTextarea;
-  if (!ta || ta.tagName !== 'TEXTAREA') return;
-  var start = ta.selectionStart, end = ta.selectionEnd;
-  var sel   = ta.value.substring(start, end);
-  ta.value  = ta.value.substring(0, start) + before + sel + after + ta.value.substring(end);
-  ta.selectionStart = start + before.length;
-  ta.selectionEnd   = start + before.length + sel.length;
-  ta.dispatchEvent(new Event('input'));
-  ta.focus();
-}
-
-function insertLinkActive() {
-  var ta = activeTextarea;
-  if (!ta || ta.tagName !== 'TEXTAREA') return;
-  var url  = prompt('URL:');
-  if (!url) return;
-  var text = ta.value.substring(ta.selectionStart, ta.selectionEnd) || 'link text';
-  var ins  = '[' + text + '](' + url + ')';
-  var s    = ta.selectionStart;
-  ta.value = ta.value.substring(0, s) + ins + ta.value.substring(ta.selectionEnd);
-  ta.dispatchEvent(new Event('input'));
-  ta.focus();
-}
-
-function lineStartActive(prefix) {
-  var ta = activeTextarea;
-  if (!ta || ta.tagName !== 'TEXTAREA') return;
-  var s    = ta.selectionStart;
-  var lineStart = ta.value.lastIndexOf('\n', s - 1) + 1;
-  ta.value = ta.value.substring(0, lineStart) + prefix + ta.value.substring(lineStart);
-  ta.dispatchEvent(new Event('input'));
-  ta.focus();
-}
-
-// ─── Auto-resize textareas ───────────────────────────────────────────────────
-function autoResize(ta) {
-  ta.style.height = 'auto';
-  ta.style.height = (ta.scrollHeight + 4) + 'px';
-}
-
-// ─── Tab switching ───────────────────────────────────────────────────────────
+// ─── Tab switching ────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
-  var editArea  = document.getElementById('drop-area');
-  var prevPane  = document.getElementById('preview-pane');
-  var tabEdit   = document.getElementById('tab-edit');
-  var tabSplit  = document.getElementById('tab-split');
-  var tabPrev   = document.getElementById('tab-preview');
+  ['edit','split','preview'].forEach(function(t){
+    document.getElementById('tab-'+t).classList.remove('active');
+  });
+  document.getElementById('tab-'+tab).classList.add('active');
 
-  tabEdit.classList.remove('active');
-  tabSplit.classList.remove('active');
-  tabPrev.classList.remove('active');
+  var wa   = document.getElementById('writing-area');
+  var prev = document.getElementById('preview-pane');
 
   if (tab === 'edit') {
-    tabEdit.classList.add('active');
-    editArea.style.display = '';
-    prevPane.classList.remove('visible');
-    editArea.style.flex = '1';
+    wa.style.display = ''; prev.classList.remove('visible');
   } else if (tab === 'split') {
-    tabSplit.classList.add('active');
-    editArea.style.display = '';
-    prevPane.classList.add('visible');
-    editArea.style.flex = '1';
-    prevPane.style.flex = '1';
-    refreshPreview();
+    wa.style.display = ''; wa.style.flex = '1';
+    prev.classList.add('visible'); prev.style.flex = '1';
+    renderPreview();
   } else {
-    tabPrev.classList.add('active');
-    editArea.style.display = 'none';
-    prevPane.classList.add('visible');
-    prevPane.style.flex = '1';
-    refreshPreview();
+    wa.style.display = 'none';
+    prev.classList.add('visible'); prev.style.flex = '1';
+    renderPreview();
   }
 }
 
 // ─── Preview ─────────────────────────────────────────────────────────────────
-function refreshPreview() {
+function schedulePreview() {
   if (currentTab === 'edit') return;
-  var md   = buildMarkdown();
-  var html = '';
-  if (typeof marked !== 'undefined') {
-    marked.setOptions({ gfm: true, breaks: false });
-    html = marked.parse(md);
-  } else {
-    html = '<pre>' + md + '</pre>';
-  }
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(renderPreview, 300);
+}
 
-  // Swap viz placeholders
-  html = html.replace(/\[viz:\s*([^\]]+)\]/g, function(_, fname) {
-    return '<div style="border:1px dashed var(--border);border-radius:6px;padding:1rem;text-align:center;color:var(--ink-light);font-family:var(--font-mono);font-size:0.75rem;margin:1rem 0;">Visualization: ' + fname.trim() + '</div>';
-  });
-  // Handle VIZ_PLACEHOLDER_ in html
-  html = html.replace(/<p>VIZ_PLACEHOLDER_\d+<\/p>/g, function(m) {
-    return '<div style="border:1px dashed var(--border);border-radius:6px;padding:1rem;text-align:center;color:var(--ink-light);font-family:var(--font-mono);font-size:0.75rem;margin:1rem 0;">[visualization placeholder]</div>';
+function renderPreview() {
+  var title = document.getElementById('post-title').value;
+  var body  = document.getElementById('main-editor').value;
+  var md    = (title ? '# ' + title + '\n\n' : '') + body;
+
+  // Handle [viz: file] as placeholder in preview
+  md = md.replace(/\[viz:\s*([^\]]+)\]/g, function(_, f) {
+    return '\n> **Visualization:** `' + f.trim() + '`\n';
   });
 
-  var content = document.getElementById('preview-content');
-  content.className = 'preview-pane-inner post-body';
-  content.innerHTML = html;
+  var html = typeof marked !== 'undefined' ? marked.parse(md) : '<pre>' + md + '</pre>';
+  var el   = document.getElementById('preview-content');
+  el.innerHTML = html;
 
-  // Render math in preview
   if (typeof renderMathInElement !== 'undefined') {
-    renderMathInElement(content, {
+    renderMathInElement(el, {
       delimiters: [
         { left: '$$', right: '$$', display: true  },
         { left: '$',  right: '$',  display: false }
@@ -590,253 +405,108 @@ function refreshPreview() {
   }
 }
 
-// ─── Markdown generation ─────────────────────────────────────────────────────
-function buildMarkdown() {
-  var parts = [];
-  blocks.forEach(function(b) {
-    var data = getBlockData(b.id);
-    if (b.type === 'markdown') {
-      parts.push(data);
-    } else if (b.type === 'heading') {
-      parts.push('## ' + data);
-    } else if (b.type === 'math') {
-      parts.push('\n$$\n' + data + '\n$$\n');
-    } else if (b.type === 'code') {
-      var parsed = {};
-      try { parsed = JSON.parse(data); } catch(_) { parsed = { lang: 'javascript', code: data }; }
-      parts.push('```' + (parsed.lang || 'javascript') + '\n' + (parsed.code || '') + '\n```');
-    } else if (b.type === 'viz') {
-      if (data.trim()) parts.push('[viz: ' + data.trim() + ']');
-    } else if (b.type === 'image') {
-      var parsed = {};
-      try { parsed = JSON.parse(data); } catch(_) { parsed = { url: data, alt: '' }; }
-      if (parsed.url) parts.push('![' + (parsed.alt || 'image') + '](' + parsed.url + ')');
-    } else if (b.type === 'callout') {
-      parts.push('> ' + data.split('\n').join('\n> '));
-    } else if (b.type === 'divider') {
-      parts.push('\n---\n');
+// ─── Speech to text ───────────────────────────────────────────────────────────
+function initSpeech() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    var btn = document.getElementById('mic-btn');
+    btn.style.opacity = '0.35'; btn.title = 'Speech needs Chrome/Edge';
+    return;
+  }
+  speechRec = new SR();
+  speechRec.continuous = true; speechRec.interimResults = true; speechRec.lang = 'en-US';
+
+  speechRec.addEventListener('result', function(e) {
+    var final = '', interim = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
     }
+    if (final) {
+      var ta = lastFocused || document.getElementById('main-editor');
+      if (ta && ta.tagName === 'TEXTAREA') {
+        var s = ta.selectionStart;
+        ta.value = ta.value.substring(0,s) + final + ' ' + ta.value.substring(s);
+        ta.selectionStart = ta.selectionEnd = s + final.length + 1;
+        ta.dispatchEvent(new Event('input')); autoResize(ta);
+      }
+    }
+    setSpeechStatus(interim ? '🎤 ' + interim.substring(0,60) + '…' : '🎤 Listening…');
   });
-  return parts.join('\n\n');
+  speechRec.addEventListener('error', function(e){ setSpeechStatus('Error: ' + e.error); stopSpeech(); });
+  speechRec.addEventListener('end',   function(){  if (speechOn) speechRec.start(); });
 }
 
-// ─── File generation / modal ─────────────────────────────────────────────────
+function toggleSpeech() {
+  if (!speechRec) { alert('Speech recognition requires Chrome or Edge.'); return; }
+  speechOn ? stopSpeech() : startSpeech();
+}
+function startSpeech() {
+  speechOn = true; speechRec.start();
+  document.getElementById('mic-btn').classList.add('active');
+  setSpeechStatus('🎤 Listening…');
+}
+function stopSpeech() {
+  speechOn = false; try { speechRec.stop(); } catch(_) {}
+  document.getElementById('mic-btn').classList.remove('active');
+  setSpeechStatus('Stopped.');
+}
+function setSpeechStatus(msg) {
+  var el = document.getElementById('speech-status');
+  if (el) el.textContent = msg;
+}
+
+// ─── Generate files modal ─────────────────────────────────────────────────────
 function generateFiles() {
-  var title   = document.getElementById('meta-title').value || 'Untitled Post';
-  var date    = document.getElementById('meta-date').value  || new Date().toISOString().slice(0,10);
-  var excerpt = document.getElementById('meta-excerpt').value.trim();
-  var featured= document.getElementById('opt-featured').checked;
-  var slug    = updateSlug();
-  var body    = buildMarkdown();
+  var title    = document.getElementById('post-title').value || 'Untitled Post';
+  var subtitle = document.getElementById('post-subtitle').value.trim();
+  var body     = document.getElementById('main-editor').value;
+  var date     = document.getElementById('meta-date').value || new Date().toISOString().slice(0,10);
+  var excerpt  = document.getElementById('meta-excerpt').value.trim() || subtitle || title;
+  var featured = document.getElementById('opt-featured').checked;
+  var slug     = updateSlug();
 
   // Build front-matter
-  var tagList = tags.length ? '[' + tags.map(function(t){ return t; }).join(', ') + ']' : '[]';
-  var frontMatter = '---\ntitle: ' + title + '\ndate: ' + date + '\ntags: ' + tagList + '\n---\n\n';
-  var mdContent = frontMatter + body;
+  var tagList   = tags.length ? '[' + tags.join(', ') + ']' : '[]';
+  var fm        = '---\ntitle: ' + title + '\ndate: ' + date + '\ntags: ' + tagList + '\n---\n\n';
+  // Include subtitle as first paragraph if present
+  var fullBody  = subtitle ? '> ' + subtitle + '\n\n' + body : body;
+  var mdContent = fm + fullBody;
 
-  // JSON entry
-  var jsonEntry = {
-    slug:     slug,
-    title:    title,
-    date:     date,
-    tags:     tags,
-    excerpt:  excerpt || title,
-    featured: featured
-  };
-
+  var entry = { slug: slug, title: title, date: date, tags: tags.slice(), excerpt: excerpt, featured: featured };
   var filename = slug + '.md';
-  document.getElementById('modal-md-filename').textContent   = 'posts/' + filename;
-  document.getElementById('modal-step-fn').textContent        = 'posts/' + filename;
-  document.getElementById('modal-md-output').textContent      = mdContent;
-  document.getElementById('modal-json-output').textContent    = JSON.stringify(jsonEntry, null, 2);
 
+  document.getElementById('modal-filename').textContent = 'posts/' + filename;
+  document.getElementById('modal-step-fn').textContent  = 'posts/' + filename;
+  document.getElementById('modal-md').textContent       = mdContent;
+  document.getElementById('modal-json').textContent     = JSON.stringify(entry, null, 2);
   document.getElementById('modal').classList.add('open');
+
+  window._mdContent = mdContent;
+  window._mdFilename = filename;
 }
 
-function closeModal() {
-  document.getElementById('modal').classList.remove('open');
-}
-
-// Close modal on overlay click
-document.getElementById('modal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('modal').addEventListener('click', function(e){ if (e.target === this) closeModal(); });
 });
 
 function copyOut(elId, btn) {
   var text = document.getElementById(elId).textContent;
   navigator.clipboard.writeText(text).then(function() {
-    var orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(function(){ btn.textContent = orig; }, 1800);
+    var o = btn.textContent; btn.textContent = '✓ Copied!';
+    setTimeout(function(){ btn.textContent = o; }, 1800);
   }).catch(function() {
-    // Fallback
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    btn.textContent = 'Copied!';
-    setTimeout(function(){ btn.textContent = 'Copy'; }, 1800);
+    var ta = document.createElement('textarea'); ta.value = text;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    var o = btn.textContent; btn.textContent = '✓ Copied!';
+    setTimeout(function(){ btn.textContent = o; }, 1800);
   });
 }
 
-// ─── Load existing post for editing ──────────────────────────────────────────
-async function loadPostForEditing(slug) {
-  var BASE = '/BeomBlogs';
-
-  // Show loading state
-  var hint = document.getElementById('drop-hint');
-  if (hint) hint.textContent = 'Loading post...';
-
-  // Update topbar to show we're editing
-  var titleEl = document.querySelector('.topbar-title');
-  if (titleEl) titleEl.textContent = '/ editing: ' + slug;
-
-  // 1. Load metadata from index.json
-  var meta = null;
-  try {
-    var res  = await fetch(BASE + '/posts/index.json');
-    var list = await res.json();
-    meta = list.find(function(p){ return p.slug === slug; });
-  } catch(e) {
-    console.error('Could not load index.json', e);
-  }
-
-  // 2. Populate metadata fields
-  if (meta) {
-    document.getElementById('meta-title').value   = meta.title   || '';
-    document.getElementById('meta-date').value    = meta.date    || '';
-    document.getElementById('meta-excerpt').value = meta.excerpt || '';
-    document.getElementById('opt-featured').checked = !!meta.featured;
-    if (meta.cover && document.getElementById('meta-cover')) {
-      document.getElementById('meta-cover').value = meta.cover;
-      if (typeof updateCoverPreview === 'function') updateCoverPreview();
-    }
-    // Load tags
-    tags = (meta.tags || []).slice();
-    renderTags();
-    updateSlug();
-  }
-
-  // 3. Load the .md file
-  var markdown = '';
-  try {
-    var res2 = await fetch(BASE + '/posts/' + slug + '.md');
-    if (!res2.ok) throw new Error('HTTP ' + res2.status);
-    markdown = await res2.text();
-  } catch(e) {
-    if (hint) hint.textContent = 'Could not load post file: ' + slug + '.md';
-    if (hint) hint.style.display = '';
-    alert('Could not load post "' + slug + '". Make sure the .md file exists in your posts/ folder.');
-    return;
-  }
-
-  // 4. Strip front-matter
-  var body = markdown.replace(/^---[\s\S]*?---\n?/, '').trim();
-
-  // 5. Parse body into blocks
-  //    Strategy: split on fenced code, math blocks, viz tags, headings, dividers.
-  //    Everything else becomes a markdown block.
-  var lines  = body.split('\n');
-  var i      = 0;
-  var parsed = []; // array of { type, content }
-
-  while (i < lines.length) {
-    var line = lines[i];
-
-    // Fenced code block
-    if (line.match(/^```(\w*)$/)) {
-      var lang    = line.replace('```','').trim() || 'javascript';
-      var codeLines = [];
-      i++;
-      while (i < lines.length && !lines[i].match(/^```\s*$/)) {
-        codeLines.push(lines[i]); i++;
-      }
-      i++; // skip closing ```
-      parsed.push({ type:'code', content: JSON.stringify({ lang:lang, code:codeLines.join('\n') }) });
-      continue;
-    }
-
-    // Display math block $$
-    if (line.trim() === '$$') {
-      var mathLines = [];
-      i++;
-      while (i < lines.length && lines[i].trim() !== '$$') {
-        mathLines.push(lines[i]); i++;
-      }
-      i++; // skip closing $$
-      parsed.push({ type:'math', content: mathLines.join('\n').trim() });
-      continue;
-    }
-
-    // Visualization tag [viz: filename]
-    var vizMatch = line.match(/^\[viz:\s*([^\]]+)\]$/);
-    if (vizMatch) {
-      parsed.push({ type:'viz', content: vizMatch[1].trim() });
-      i++; continue;
-    }
-
-    // Heading lines (# ## ###)
-    var hMatch = line.match(/^(#{1,3})\s+(.+)$/);
-    if (hMatch) {
-      var level = hMatch[1].length === 1 ? 'H1' : hMatch[1].length === 3 ? 'H3' : 'H2';
-      parsed.push({ type:'heading', content: JSON.stringify({ level:level, text:hMatch[2] }) });
-      i++; continue;
-    }
-
-    // Horizontal rule
-    if (line.match(/^---+$/) || line.match(/^\*\*\*+$/) || line.match(/^___+$/)) {
-      parsed.push({ type:'divider', content:'' });
-      i++; continue;
-    }
-
-    // Blockquote → callout
-    if (line.match(/^>\s/)) {
-      var qLines = [];
-      while (i < lines.length && (lines[i].match(/^>\s/) || lines[i].match(/^>$/))) {
-        qLines.push(lines[i].replace(/^>\s?/,'')); i++;
-      }
-      parsed.push({ type:'callout', content: qLines.join('\n') });
-      continue;
-    }
-
-    // Image line
-    var imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)\s*$/);
-    if (imgMatch) {
-      parsed.push({ type:'image', content: JSON.stringify({ alt:imgMatch[1], url:imgMatch[2] }) });
-      i++; continue;
-    }
-
-    // Everything else: accumulate into a markdown block
-    var mdLines = [];
-    while (i < lines.length) {
-      var l = lines[i];
-      // Stop if we hit a special block start
-      if (l.match(/^```(\w*)$/) || l.trim()==='$$' || l.match(/^\[viz:/) ||
-          l.match(/^(#{1,3})\s/) || l.match(/^---+$/) || l.match(/^!\[[^\]]*\]\([^)]+\)\s*$/)) break;
-      mdLines.push(l); i++;
-    }
-    var mdText = mdLines.join('\n').trim();
-    if (mdText) parsed.push({ type:'markdown', content: mdText });
-  }
-
-  // 6. Clear the drop area and add parsed blocks
-  var area = document.getElementById('drop-area');
-  area.querySelectorAll('.editor-block').forEach(function(el){ el.remove(); });
-  blocks = []; blockIdCtr = 0;
-  if (hint) hint.style.display = 'none';
-
-  parsed.forEach(function(p) {
-    addBlock(p.type, p.content);
-  });
-
-  // If nothing parsed, add a blank markdown block
-  if (!parsed.length) {
-    addBlock('markdown', body || 'Write your post here...');
-  }
-
-  // Scroll to top
-  area.scrollTop = 0;
-  console.log('Loaded ' + parsed.length + ' blocks from "' + slug + '"');
+function downloadMd() {
+  if (!window._mdContent) return;
+  var blob = new Blob([window._mdContent], { type: 'text/markdown' });
+  var a    = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = window._mdFilename; a.click(); URL.revokeObjectURL(a.href);
 }

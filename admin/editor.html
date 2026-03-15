@@ -3,266 +3,425 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blog Editor</title>
-  <link rel="stylesheet" href="../assets/css/editor.css" />
+  <title>Blog Editor — BeomBlogs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <style>
-    /* ── Load panel ── */
-    .load-panel {
-      display: none;
-      position: fixed;
-      top: 52px; left: 0; right: 0;
-      background: var(--paper);
-      border-bottom: 2px solid var(--accent);
-      padding: 0.9rem 1.5rem;
-      align-items: center;
-      gap: 0.75rem;
-      z-index: 40;
-      flex-wrap: wrap;
-      box-shadow: 0 4px 16px var(--shadow);
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #1a1714; --ink-mid: #4a4540; --ink-light: #8a8078;
+      --cream: #f7f4ef; --cream-dk: #ede9e2; --paper: #faf8f5;
+      --accent: #c84b20; --border: #d8d2c8; --border-dk: #c0b8ae;
+      --panel: #f2ede6; --green: #3a8a4a; --blue: #2a6496;
+      --font-serif: 'Playfair Display', Georgia, serif;
+      --font-sans: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'DM Mono', monospace;
     }
-    .load-panel label {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--ink-light);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-    .load-panel select {
-      flex: 1;
-      min-width: 220px;
-      padding: 0.45rem 0.65rem;
-      font-family: var(--font-sans);
-      font-size: 0.82rem;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--cream);
-      color: var(--ink);
-      outline: none;
-    }
-    .load-panel select:focus { border-color: var(--accent); }
-    #load-status {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--ink-light);
-      margin-left: auto;
-    }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--font-sans); background: var(--cream); color: var(--ink); display: flex; flex-direction: column; }
 
-    /* ── Edit-mode banner ── */
-    .edit-mode-banner {
-      display: none;
-      align-items: center;
-      gap: 0.6rem;
-      background: #fff8e1;
-      border-bottom: 1px solid #f0d060;
-      padding: 0.4rem 1.5rem;
-      font-size: 0.78rem;
-      color: #7a6010;
-      font-family: var(--font-mono);
-      flex-shrink: 0;
+    /* ── Topbar ── */
+    .topbar {
+      display: flex; align-items: center; gap: 1rem; padding: 0 1.25rem;
+      height: 50px; background: var(--paper); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; z-index: 100;
     }
-    .edit-mode-banner .banner-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #e0a020;
-      flex-shrink: 0;
+    .topbar-logo { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink); text-decoration: none; }
+    .topbar-logo span { color: var(--accent); }
+    .topbar-sep { width: 1px; height: 18px; background: var(--border); }
+    .topbar-title { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-light); }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+    .btn {
+      font-family: var(--font-sans); font-size: 0.78rem; font-weight: 400;
+      padding: 0.35rem 0.9rem; border-radius: 4px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--paper); color: var(--ink-mid);
+      transition: all 0.15s; white-space: nowrap;
     }
-    .edit-mode-banner .banner-actions {
-      margin-left: auto;
-      display: flex;
-      gap: 0.5rem;
+    .btn:hover { background: var(--cream-dk); color: var(--ink); }
+    .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+    .btn.primary:hover { background: #a03a15; }
+    .btn.mic-btn { font-size: 1rem; padding: 0.3rem 0.65rem; }
+    .btn.mic-btn.active { background: #fde8e2; color: var(--accent); border-color: var(--accent); animation: pulse 1.2s ease infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    .view-tabs { display: flex; gap: 2px; }
+    .view-tab { padding: 0.25rem 0.65rem; font-size: 0.72rem; border-radius: 3px; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--ink-light); font-family: var(--font-mono); transition: all 0.15s; }
+    .view-tab.active { background: var(--cream-dk); color: var(--ink); }
+
+    /* ── Main layout ── */
+    .editor-layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Writing area ── */
+    .writing-area {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;
     }
-    .edit-mode-banner button {
-      font-family: var(--font-sans);
-      font-size: 0.72rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 3px;
-      cursor: pointer;
-      border: 1px solid #c0a030;
-      background: transparent;
-      color: #7a6010;
-      transition: background 0.15s;
+    .editor-scroll { flex: 1; overflow-y: auto; padding: 3rem 0; }
+    .editor-inner { max-width: 720px; margin: 0 auto; padding: 0 2rem; }
+
+    /* Title input */
+    .post-title-input {
+      width: 100%; border: none; outline: none; background: transparent;
+      font-family: var(--font-serif); font-size: 2.6rem; font-weight: 700;
+      color: var(--ink); line-height: 1.15; letter-spacing: -0.02em;
+      margin-bottom: 0.5rem; resize: none; overflow: hidden;
+      min-height: 3.5rem;
     }
-    .edit-mode-banner button:hover { background: #f0d060; }
+    .post-title-input::placeholder { color: #c8c0b8; }
+
+    /* Subtitle / excerpt */
+    .post-subtitle-input {
+      width: 100%; border: none; outline: none; background: transparent;
+      font-family: var(--font-sans); font-size: 1.1rem; font-weight: 300;
+      color: var(--ink-mid); line-height: 1.6; margin-bottom: 2rem;
+      resize: none; overflow: hidden; min-height: 1.8rem;
+      border-bottom: 1px solid var(--border); padding-bottom: 1.5rem;
+    }
+    .post-subtitle-input::placeholder { color: #c8c0b8; }
+
+    /* Main textarea */
+    .main-textarea {
+      width: 100%; min-height: 60vh; border: none; outline: none;
+      background: transparent; font-family: var(--font-mono);
+      font-size: 0.92rem; line-height: 1.85; color: var(--ink);
+      resize: none; overflow: hidden;
+      tab-size: 2;
+    }
+    .main-textarea::placeholder { color: #c8c0b8; font-family: var(--font-sans); }
+
+    /* ── Floating format toolbar (shows on text select) ── */
+    .float-toolbar {
+      position: fixed; z-index: 200; background: var(--ink); border-radius: 6px;
+      padding: 0.3rem 0.4rem; display: flex; align-items: center; gap: 2px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25); opacity: 0; pointer-events: none;
+      transition: opacity 0.12s; transform: translateY(-4px);
+    }
+    .float-toolbar.visible { opacity: 1; pointer-events: all; transform: translateY(0); }
+    .ft-btn {
+      background: none; border: none; color: #e8e8e8; cursor: pointer;
+      padding: 0.25rem 0.45rem; border-radius: 3px; font-size: 0.8rem;
+      font-family: var(--font-sans); transition: background 0.1s; white-space: nowrap;
+    }
+    .ft-btn:hover { background: rgba(255,255,255,0.15); }
+    .ft-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 2px; }
+
+    /* ── Slash menu ── */
+    .slash-menu {
+      position: fixed; z-index: 300; background: var(--paper); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      width: 240px; overflow: hidden; display: none;
+    }
+    .slash-menu.visible { display: block; }
+    .slash-menu-header { padding: 0.5rem 0.75rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--ink-light); letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .slash-item {
+      display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.75rem;
+      cursor: pointer; transition: background 0.1s; border: none; background: none;
+      width: 100%; text-align: left;
+    }
+    .slash-item:hover, .slash-item.active { background: var(--cream-dk); }
+    .slash-icon { font-size: 1rem; width: 1.4rem; text-align: center; flex-shrink: 0; }
+    .slash-label { font-size: 0.82rem; font-weight: 400; color: var(--ink); }
+    .slash-desc  { font-size: 0.68rem; color: var(--ink-light); }
+
+    /* ── Emoji picker ── */
+    .emoji-picker {
+      position: fixed; z-index: 400; background: var(--paper); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      width: 300px; padding: 0.75rem; display: none;
+    }
+    .emoji-picker.visible { display: block; }
+    .emoji-search {
+      width: 100%; padding: 0.4rem 0.6rem; border: 1px solid var(--border); border-radius: 4px;
+      font-family: var(--font-sans); font-size: 0.82rem; outline: none; margin-bottom: 0.5rem; background: var(--cream);
+    }
+    .emoji-search:focus { border-color: var(--accent); }
+    .emoji-cats { display: flex; gap: 4px; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .emoji-cat-btn { background: none; border: 1px solid var(--border); border-radius: 3px; padding: 2px 6px; font-size: 0.75rem; cursor: pointer; color: var(--ink-light); font-family: var(--font-mono); }
+    .emoji-cat-btn.active { background: var(--cream-dk); color: var(--ink); border-color: var(--border-dk); }
+    .emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; max-height: 200px; overflow-y: auto; }
+    .emoji-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 3px; border-radius: 3px; text-align: center; }
+    .emoji-btn:hover { background: var(--cream-dk); }
+
+    /* ── Table insert helper ── */
+    .table-picker {
+      position: fixed; z-index: 400; background: var(--paper); border: 1px solid var(--border);
+      border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      padding: 0.75rem; display: none;
+    }
+    .table-picker.visible { display: block; }
+    .table-picker p { font-size: 0.75rem; color: var(--ink-light); margin-bottom: 0.5rem; font-family: var(--font-mono); }
+    .table-grid { display: grid; grid-template-columns: repeat(6,22px); gap: 3px; }
+    .table-cell { width: 22px; height: 22px; border: 1px solid var(--border); border-radius: 2px; cursor: pointer; background: var(--cream); transition: background 0.1s; }
+    .table-cell.hover { background: var(--accent); border-color: var(--accent); }
+    .table-size-label { font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-light); margin-top: 0.4rem; text-align: center; }
+
+    /* ── Preview pane ── */
+    .preview-pane { flex: 1; overflow-y: auto; border-left: 1px solid var(--border); background: var(--paper); display: none; }
+    .preview-pane.visible { display: block; }
+    .preview-inner { max-width: 680px; margin: 0 auto; padding: 3rem 2rem; }
+    .preview-inner h1,.preview-inner h2,.preview-inner h3 { font-family: var(--font-serif); font-weight: 700; color: var(--ink); margin: 2rem 0 0.75rem; line-height: 1.2; }
+    .preview-inner h1 { font-size: 2rem; }
+    .preview-inner h2 { font-size: 1.5rem; }
+    .preview-inner h3 { font-size: 1.2rem; }
+    .preview-inner p { margin-bottom: 1.25rem; line-height: 1.8; }
+    .preview-inner code { font-family: var(--font-mono); font-size: 0.85em; background: var(--cream-dk); padding: 0.1em 0.4em; border-radius: 3px; color: var(--accent); }
+    .preview-inner pre { background: #1a1a24; color: #d0d0e0; border-radius: 6px; padding: 1.25rem; overflow-x: auto; margin: 1.5rem 0; }
+    .preview-inner pre code { background: none; color: inherit; padding: 0; }
+    .preview-inner blockquote { border-left: 3px solid var(--accent); padding-left: 1.25rem; color: var(--ink-mid); font-style: italic; margin: 1.5rem 0; }
+    .preview-inner table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+    .preview-inner th { border-bottom: 2px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-light); }
+    .preview-inner td { border-bottom: 1px solid var(--border); padding: 0.6rem 0.75rem; }
+    .preview-inner img { max-width: 100%; border-radius: 6px; margin: 1rem 0; }
+    .preview-inner ul,.preview-inner ol { padding-left: 1.5rem; margin-bottom: 1.25rem; }
+    .preview-inner li { margin-bottom: 0.35rem; line-height: 1.7; }
+    .preview-inner hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+    /* ── Right: Meta panel ── */
+    .meta-panel {
+      width: 230px; border-left: 1px solid var(--border); background: var(--panel);
+      display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0;
+    }
+    .meta-section { padding: 1rem 1.1rem; border-bottom: 1px solid var(--border); }
+    .meta-section-title { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 0.6rem; display: block; }
+    .meta-input { width: 100%; padding: 0.45rem 0.55rem; font-family: var(--font-sans); font-size: 0.8rem; border: 1px solid var(--border); border-radius: 4px; background: var(--paper); color: var(--ink); outline: none; margin-bottom: 0.45rem; transition: border-color 0.15s; }
+    .meta-input:focus { border-color: var(--accent); }
+    .meta-label { font-size: 0.7rem; color: var(--ink-light); margin-bottom: 0.2rem; display: block; }
+    .slug-display { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); word-break: break-all; padding: 0.25rem 0; }
+    .tags-wrap { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.35rem; border: 1px solid var(--border); border-radius: 4px; background: var(--paper); min-height: 34px; align-items: center; cursor: text; }
+    .tags-wrap:focus-within { border-color: var(--accent); }
+    .tag-chip { display: flex; align-items: center; gap: 2px; background: var(--cream-dk); color: var(--ink-mid); border: 1px solid var(--border); border-radius: 3px; padding: 0.1rem 0.35rem; font-size: 0.68rem; font-family: var(--font-mono); }
+    .tag-chip-rm { background: none; border: none; cursor: pointer; color: var(--ink-light); font-size: 0.75rem; padding: 0; }
+    .tag-chip-rm:hover { color: var(--accent); }
+    .tag-text-input { border: none; outline: none; font-size: 0.76rem; font-family: var(--font-sans); background: transparent; color: var(--ink); min-width: 60px; flex: 1; }
+    .speech-status { font-size: 0.7rem; color: var(--accent); min-height: 1rem; font-family: var(--font-mono); padding: 0.25rem 0; word-break: break-word; }
+
+    /* ── Insert toolbar (below textarea) ── */
+    .insert-bar {
+      border-top: 1px solid var(--border); background: var(--paper);
+      padding: 0.4rem 1rem; display: flex; align-items: center; gap: 0.25rem;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .insert-bar-label { font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-light); letter-spacing: 0.06em; text-transform: uppercase; margin-right: 0.25rem; }
+    .ib-btn {
+      background: none; border: 1px solid transparent; border-radius: 3px;
+      padding: 0.25rem 0.55rem; font-size: 0.78rem; cursor: pointer; color: var(--ink-mid);
+      font-family: var(--font-sans); transition: all 0.12s;
+    }
+    .ib-btn:hover { background: var(--cream-dk); border-color: var(--border); color: var(--ink); }
+    .ib-sep { width: 1px; height: 18px; background: var(--border); margin: 0 0.15rem; }
+
+    /* ── Hint bar ── */
+    .hint-bar { padding: 0.3rem 1rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--ink-light); background: var(--cream); border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    /* ── Modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.5); z-index: 500; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--paper); border: 1px solid var(--border); border-radius: 8px; padding: 1.75rem; width: 620px; max-width: 95vw; max-height: 90vh; overflow-y: auto; position: relative; }
+    .modal-close { position: absolute; top: 0.9rem; right: 0.9rem; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--ink-light); }
+    .modal-close:hover { color: var(--ink); }
+    .modal-title { font-family: var(--font-serif); font-size: 1.3rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .modal-sub { font-size: 0.8rem; color: var(--ink-mid); margin-bottom: 1.25rem; }
+    .out-label { font-size: 0.7rem; color: var(--ink-light); letter-spacing: 0.07em; text-transform: uppercase; font-family: var(--font-mono); display: block; margin-bottom: 0.35rem; }
+    .out-label span { color: var(--accent); }
+    .output-area { font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.6; background: #1a1a24; color: #d0d0e0; padding: 1rem; border-radius: 6px; max-height: 220px; overflow-y: auto; white-space: pre; margin-bottom: 0.6rem; }
+    .copy-row { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .modal-steps { font-size: 0.8rem; color: var(--ink-mid); line-height: 1.7; }
+    .modal-steps ol { padding-left: 1.4rem; }
+    .modal-steps li { margin-bottom: 0.3rem; }
+    .modal-steps code { font-family: var(--font-mono); font-size: 0.82em; background: var(--cream-dk); padding: 0.1em 0.3em; border-radius: 3px; color: var(--accent); }
+
+    /* ── Word count ── */
+    .wc { font-family: var(--font-mono); font-size: 0.65rem; color: var(--ink-light); }
   </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
-<div class="editor-topbar">
+<!-- Topbar -->
+<div class="topbar">
   <a href="../index.html" class="topbar-logo"><span>[</span>my blog<span>]</span></a>
-  <span class="topbar-title">/ editor</span>
-  <div class="topbar-actions">
-    <button class="btn secondary" onclick="toggleLoadPanel()">✎ Edit Existing Post</button>
-    <button class="btn" onclick="clearEditor()">+ New Post</button>
-    <button class="btn" onclick="switchTab('split')">Preview</button>
-    <button class="btn primary" onclick="generateFiles()">Generate Files</button>
+  <div class="topbar-sep"></div>
+  <span class="topbar-title">new post</span>
+  <div class="topbar-right">
+    <span class="wc" id="word-count">0 words</span>
+    <div class="topbar-sep"></div>
+    <button class="btn mic-btn" id="mic-btn" onclick="toggleSpeech()" title="Speech to text (click a text area first)">🎤</button>
+    <div class="topbar-sep"></div>
+    <div class="view-tabs">
+      <button class="view-tab active" id="tab-edit"    onclick="switchTab('edit')">Write</button>
+      <button class="view-tab"        id="tab-split"   onclick="switchTab('split')">Split</button>
+      <button class="view-tab"        id="tab-preview" onclick="switchTab('preview')">Preview</button>
+    </div>
+    <div class="topbar-sep"></div>
+    <button class="btn primary" onclick="generateFiles()">Publish →</button>
   </div>
 </div>
 
-<!-- LOAD EXISTING POST PANEL -->
-<div class="load-panel" id="load-panel">
-  <label>Load post:</label>
-  <select id="existing-post-select">
-    <option value="">Loading posts…</option>
-  </select>
-  <button class="btn primary" onclick="loadSelectedPost()">Load into Editor</button>
-  <button class="btn" onclick="setLoadPanelOpen(false)">Cancel</button>
-  <span id="load-status"></span>
-</div>
-
-<!-- EDIT MODE BANNER -->
-<div class="edit-mode-banner" id="edit-mode-banner">
-  <div class="banner-dot"></div>
-  Editing: <strong id="edit-mode-slug"></strong>
-  <div class="banner-actions">
-    <button onclick="clearEditor()">Start new post instead</button>
-  </div>
-</div>
-
-<!-- MAIN EDITOR LAYOUT -->
+<!-- Layout -->
 <div class="editor-layout">
 
-  <!-- LEFT: Block Palette -->
-  <aside class="blocks-panel">
-    <div class="panel-header">Blocks — drag or click</div>
-    <div class="blocks-list" id="block-palette">
-      <div class="block-btn" draggable="true" data-type="markdown">
-        <span class="block-icon">P</span>
-        <div><div class="block-label">Markdown</div><div class="block-desc">Text, lists, links</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="heading">
-        <span class="block-icon">H</span>
-        <div><div class="block-label">Heading</div><div class="block-desc">Section title</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="math">
-        <span class="block-icon">S</span>
-        <div><div class="block-label">Math (LaTeX)</div><div class="block-desc">Equations</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="code">
-        <span class="block-icon">&lt;/&gt;</span>
-        <div><div class="block-label">Code Block</div><div class="block-desc">Syntax highlighted</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="viz">
-        <span class="block-icon">*</span>
-        <div><div class="block-label">Visualization</div><div class="block-desc">Embed HTML file</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="image">
-        <span class="block-icon">[]</span>
-        <div><div class="block-label">Image</div><div class="block-desc">From URL or path</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="callout">
-        <span class="block-icon">!</span>
-        <div><div class="block-label">Callout</div><div class="block-desc">Highlighted note</div></div>
-      </div>
-      <div class="block-btn" draggable="true" data-type="divider">
-        <span class="block-icon">-</span>
-        <div><div class="block-label">Divider</div><div class="block-desc">Horizontal rule</div></div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- CENTER: Editor -->
-  <div class="editor-center">
-    <div class="editor-toolbar">
-      <button class="tool-btn" title="Bold" onclick="wrapActive('**','**')"><strong>B</strong></button>
-      <button class="tool-btn" title="Italic" onclick="wrapActive('_','_')"><em>I</em></button>
-      <button class="tool-btn" title="Inline code" onclick="wrapActive('` ','` ')">code</button>
-      <button class="tool-btn" title="Link" onclick="insertLinkActive()">link</button>
-      <span class="tool-sep"></span>
-      <button class="tool-btn" title="Bullet list" onclick="lineStartActive('- ')">list</button>
-      <button class="tool-btn" title="Blockquote" onclick="lineStartActive('> ')">quote</button>
-      <span class="tool-sep"></span>
-      <button class="tool-btn" title="Inline math" onclick="wrapActive('$','$')">$x$</button>
-      <button class="tool-btn" title="Display math" onclick="wrapActive('\n$$\n','\n$$\n')">$$</button>
-      <div class="view-tabs">
-        <button class="view-tab active" id="tab-edit" onclick="switchTab('edit')">Edit</button>
-        <button class="view-tab" id="tab-split" onclick="switchTab('split')">Split</button>
-        <button class="view-tab" id="tab-preview" onclick="switchTab('preview')">Preview</button>
+  <!-- Writing area -->
+  <div class="writing-area" id="writing-area">
+    <div class="editor-scroll" id="editor-scroll">
+      <div class="editor-inner">
+        <textarea class="post-title-input" id="post-title" placeholder="Post title…" rows="1" oninput="autoResize(this);updateSlug();updateWC()"></textarea>
+        <textarea class="post-subtitle-input" id="post-subtitle" placeholder="Subtitle or opening line… (shown as excerpt)" rows="1" oninput="autoResize(this);updateWC()"></textarea>
+        <textarea class="main-textarea" id="main-editor"
+          placeholder="Start writing… or type / for commands&#10;&#10;Tips:&#10;  ## Heading  |  **bold**  |  _italic_  |  `code`&#10;  $$math$$  |  [viz: file.html]  |  > blockquote"
+          oninput="autoResize(this);updateWC();schedulePreview()"
+          onkeydown="handleEditorKey(event)"
+          onmouseup="showFloatToolbar()" onkeyup="showFloatToolbar()"
+          onfocus="lastFocused=this"
+        ></textarea>
       </div>
     </div>
 
-    <div class="editor-panes" id="editor-panes">
-      <div class="editor-drop-area" id="drop-area">
-        <div class="drop-hint" id="drop-hint">
-          Drag a block from the left panel, or click any block type to add it here.
-        </div>
-      </div>
-      <div class="preview-pane" id="preview-pane">
-        <div class="preview-pane-inner" id="preview-content"></div>
-      </div>
+    <!-- Insert bar -->
+    <div class="insert-bar">
+      <span class="insert-bar-label">Insert</span>
+      <button class="ib-btn" onclick="insertSnippet('## Heading\n\n','')">H2</button>
+      <button class="ib-btn" onclick="insertSnippet('### Heading\n\n','')">H3</button>
+      <div class="ib-sep"></div>
+      <button class="ib-btn" onclick="insertSnippet('**','**')" title="Bold"><b>B</b></button>
+      <button class="ib-btn" onclick="insertSnippet('_','_')" title="Italic"><i>I</i></button>
+      <button class="ib-btn" onclick="insertSnippet('`','`')" title="Inline code">code</button>
+      <button class="ib-btn" onclick="insertLink()" title="Link">🔗</button>
+      <div class="ib-sep"></div>
+      <button class="ib-btn" onclick="insertSnippet('\n$$\n','\\n$$\\n')" title="Math block">∑ Math</button>
+      <button class="ib-btn" onclick="showTablePicker(event)" title="Table">⊞ Table</button>
+      <button class="ib-btn" onclick="insertSnippet('\n```javascript\n','\n```\n')" title="Code block">&lt;/&gt; Code</button>
+      <button class="ib-btn" onclick="insertSnippet('[viz: ',']\n')" title="Embed visualization">◈ Viz</button>
+      <button class="ib-btn" onclick="insertSnippet('> ','') " title="Blockquote / callout">❝ Quote</button>
+      <button class="ib-btn" onclick="insertSnippet('\n---\n','')" title="Divider">— Rule</button>
+      <button class="ib-btn" onclick="insertSnippet('![alt](',')')" title="Image">🖼 Image</button>
+      <div class="ib-sep"></div>
+      <button class="ib-btn" onclick="showEmojiPicker(event)">😊 Emoji</button>
     </div>
+
+    <!-- Hint -->
+    <div class="hint-bar">Type <strong>/</strong> at the start of a line for quick insert menu &nbsp;·&nbsp; Select text for formatting toolbar &nbsp;·&nbsp; 🎤 mic for speech-to-text</div>
   </div>
 
-  <!-- RIGHT: Metadata -->
+  <!-- Preview pane -->
+  <div class="preview-pane" id="preview-pane">
+    <div class="preview-inner" id="preview-content"></div>
+  </div>
+
+  <!-- Meta panel -->
   <aside class="meta-panel">
     <div class="meta-section">
-      <span class="meta-section-title">Post Details</span>
-      <span class="meta-label">Title</span>
-      <input class="meta-input" id="meta-title" placeholder="My Post Title" oninput="updateSlug()" />
+      <span class="meta-section-title">Post Info</span>
       <span class="meta-label">Slug (filename)</span>
       <div class="slug-display" id="slug-display">my-post-title</div>
-      <span class="meta-label">Date</span>
+      <span class="meta-label" style="margin-top:0.5rem;">Date</span>
       <input class="meta-input" id="meta-date" type="date" />
-      <span class="meta-label">Excerpt</span>
-      <textarea class="meta-input" id="meta-excerpt" rows="3" placeholder="Short summary…" style="resize:vertical;font-family:inherit;line-height:1.5;"></textarea>
+      <span class="meta-label">Excerpt (optional override)</span>
+      <textarea class="meta-input" id="meta-excerpt" rows="2" placeholder="Leave blank to use subtitle" style="resize:vertical;font-family:inherit;line-height:1.5;font-size:0.78rem;"></textarea>
     </div>
     <div class="meta-section">
       <span class="meta-section-title">Tags</span>
-      <div class="tags-input-wrap" id="tags-wrap" onclick="document.getElementById('tag-input').focus()">
-        <input class="tag-text-input" id="tag-input" placeholder="Add tag, press Enter" onkeydown="handleTagInput(event)" />
+      <div class="tags-wrap" id="tags-wrap" onclick="document.getElementById('tag-input').focus()">
+        <input class="tag-text-input" id="tag-input" placeholder="Add tag, Enter to add" onkeydown="handleTagInput(event)" />
       </div>
+      <p style="font-size:0.68rem;color:var(--ink-light);margin-top:0.35rem;">Press Enter or comma to add</p>
     </div>
     <div class="meta-section">
       <span class="meta-section-title">Options</span>
-      <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;cursor:pointer;color:var(--ink-mid);">
-        <input type="checkbox" id="opt-featured" /> Featured post
+      <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;cursor:pointer;color:var(--ink-mid);">
+        <input type="checkbox" id="opt-featured"> Featured post
       </label>
     </div>
     <div class="meta-section">
-      <span class="meta-section-title">Quick Help</span>
-      <p style="font-size:0.72rem;color:var(--ink-light);line-height:1.7;">
-        Click <strong>Edit Existing Post</strong> in the top bar to load and modify any published post.<br><br>
-        Click <strong>+ New Post</strong> to clear the editor and start fresh.<br><br>
-        <strong>Math:</strong> <code style="font-size:0.85em;background:var(--cream-dk);padding:0.1em 0.3em;border-radius:2px;">$...$</code> inline, <code style="font-size:0.85em;background:var(--cream-dk);padding:0.1em 0.3em;border-radius:2px;">$$...$$</code> display.
-      </p>
+      <span class="meta-section-title">Speech to Text</span>
+      <p style="font-size:0.7rem;color:var(--ink-light);line-height:1.6;margin-bottom:0.5rem;">Click in a text area, then press 🎤 in the topbar.</p>
+      <div class="speech-status" id="speech-status"></div>
+    </div>
+    <div class="meta-section">
+      <span class="meta-section-title">Cheatsheet</span>
+      <div style="font-size:0.68rem;color:var(--ink-light);line-height:1.9;font-family:var(--font-mono);">
+        ## Heading 2<br>
+        ### Heading 3<br>
+        **bold** &nbsp; _italic_<br>
+        `inline code`<br>
+        [text](url)<br>
+        ![alt](img.jpg)<br>
+        $inline math$<br>
+        $$display math$$<br>
+        [viz: file.html]<br>
+        > blockquote<br>
+        ---&nbsp; (divider)<br>
+        - bullet list<br>
+        1. numbered list
+      </div>
     </div>
   </aside>
-
 </div>
 
-<!-- OUTPUT MODAL -->
+<!-- Float toolbar -->
+<div class="float-toolbar" id="float-toolbar">
+  <button class="ft-btn" onclick="ftWrap('**','**')" title="Bold"><b>B</b></button>
+  <button class="ft-btn" onclick="ftWrap('_','_')" title="Italic"><i>I</i></button>
+  <button class="ft-btn" onclick="ftWrap('`','`')" title="Code">code</button>
+  <div class="ft-sep"></div>
+  <button class="ft-btn" onclick="ftWrap('$','$')" title="Math">$x$</button>
+  <button class="ft-btn" onclick="ftLink()" title="Link">🔗</button>
+  <div class="ft-sep"></div>
+  <button class="ft-btn" onclick="ftWrap('**~~','~~**')" title="Bold+Strike">~~</button>
+  <button class="ft-btn" onclick="ftHeading()" title="Make heading">H2</button>
+</div>
+
+<!-- Slash menu -->
+<div class="slash-menu" id="slash-menu">
+  <div class="slash-menu-header">/ commands</div>
+  <button class="slash-item" data-insert="## " data-after="" onclick="doSlash(this)"><span class="slash-icon">H2</span><div><div class="slash-label">Heading 2</div></div></button>
+  <button class="slash-item" data-insert="### " data-after="" onclick="doSlash(this)"><span class="slash-icon">H3</span><div><div class="slash-label">Heading 3</div></div></button>
+  <button class="slash-item" data-insert="$$\n" data-after="\n$$" onclick="doSlash(this)"><span class="slash-icon">∑</span><div><div class="slash-label">Math block</div><div class="slash-desc">LaTeX equation</div></div></button>
+  <button class="slash-item" data-insert="```javascript\n" data-after="\n```" onclick="doSlash(this)"><span class="slash-icon">&lt;/&gt;</span><div><div class="slash-label">Code block</div></div></button>
+  <button class="slash-item" data-insert="[viz: " data-after="]" onclick="doSlash(this)"><span class="slash-icon">◈</span><div><div class="slash-label">Visualization</div><div class="slash-desc">Embed HTML file</div></div></button>
+  <button class="slash-item" data-insert="> " data-after="" onclick="doSlash(this)"><span class="slash-icon">❝</span><div><div class="slash-label">Blockquote</div></div></button>
+  <button class="slash-item" data-insert="---\n" data-after="" onclick="doSlash(this)"><span class="slash-icon">—</span><div><div class="slash-label">Divider</div></div></button>
+  <button class="slash-item" data-insert="- " data-after="" onclick="doSlash(this)"><span class="slash-icon">•</span><div><div class="slash-label">Bullet list</div></div></button>
+  <button class="slash-item" data-insert="1. " data-after="" onclick="doSlash(this)"><span class="slash-icon">1.</span><div><div class="slash-label">Numbered list</div></div></button>
+  <button class="slash-item" data-insert="![alt](" data-after=")" onclick="doSlash(this)"><span class="slash-icon">🖼</span><div><div class="slash-label">Image</div></div></button>
+</div>
+
+<!-- Table picker -->
+<div class="table-picker" id="table-picker">
+  <p id="table-size-label">Insert table</p>
+  <div class="table-grid" id="table-grid"></div>
+</div>
+
+<!-- Emoji picker -->
+<div class="emoji-picker" id="emoji-picker">
+  <input class="emoji-search" id="emoji-search" placeholder="Search emoji…" oninput="filterEmoji()" />
+  <div class="emoji-cats" id="emoji-cats"></div>
+  <div class="emoji-grid" id="emoji-grid"></div>
+</div>
+
+<!-- Output modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal-box">
-    <button class="modal-close" onclick="closeModal()">x</button>
-    <h2 class="modal-title">Your Post Files</h2>
-    <p class="modal-subtitle">Copy the content below and follow the steps to publish.</p>
-
-    <strong style="font-size:0.75rem;color:var(--ink-light);letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:0.4rem;">
-      Markdown file — save as <span id="modal-md-filename" style="color:var(--accent);font-family:var(--font-mono);"></span>
-    </strong>
-    <div class="output-area" id="modal-md-output"></div>
-    <div class="copy-btn-row">
-      <button class="btn primary" onclick="copyOut('modal-md-output', this)">Copy Markdown</button>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 class="modal-title">Publish Your Post</h2>
+    <p class="modal-sub">Copy these two outputs and follow the steps to go live on GitHub Pages.</p>
+    <span class="out-label">Step 1 — Save as <span id="modal-filename"></span></span>
+    <div class="output-area" id="modal-md"></div>
+    <div class="copy-row">
+      <button class="btn primary" onclick="copyOut('modal-md',this)">Copy Markdown</button>
+      <button class="btn" onclick="downloadMd()">Download .md</button>
     </div>
-
-    <br>
-    <strong style="font-size:0.75rem;color:var(--ink-light);letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:0.4rem;">
-      index.json entry
-    </strong>
-    <div class="output-area" id="modal-json-output"></div>
-    <div class="copy-btn-row">
-      <button class="btn" onclick="copyOut('modal-json-output', this)">Copy JSON entry</button>
+    <span class="out-label">Step 2 — Add to <span>posts/index.json</span></span>
+    <div class="output-area" id="modal-json"></div>
+    <div class="copy-row">
+      <button class="btn" onclick="copyOut('modal-json',this)">Copy JSON entry</button>
     </div>
-
-    <br>
-    <div class="modal-steps" id="modal-steps-content">
-      <!-- Filled dynamically by generateFiles() -->
+    <div class="modal-steps">
+      <strong>Checklist:</strong>
+      <ol>
+        <li>Save the Markdown as <code id="modal-step-fn"></code> inside <code>posts/</code>.</li>
+        <li>Open <code>posts/index.json</code> → paste the JSON entry into the array (add a comma after the previous last entry).</li>
+        <li>If you used a visualization, put the HTML file in <code>visualizations/</code>.</li>
+        <li>Commit &amp; push to GitHub — post goes live automatically!</li>
+      </ol>
     </div>
-    <p style="font-size:0.7rem;color:var(--ink-light);margin-top:0.75rem;">
-      Tip: <code id="modal-step-fn" style="font-size:0.85em;"></code>
-    </p>
   </div>
 </div>
 
