@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog Editor</title>
+  <link rel="stylesheet" href="../assets/css/editor.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <style>
+    /* ── New feature styles ── */
+    .autosave-banner {
+      display: none; align-items: center; justify-content: space-between;
+      background: #fff8e6; border-bottom: 1px solid #e8d88a;
+      padding: 0.5rem 1.5rem; font-size: 0.8rem; color: #7a6010; gap: 1rem; flex-shrink: 0;
+    }
+    .autosave-banner button {
+      font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 3px; cursor: pointer;
+      border: 1px solid #c8a820; background: white; color: #7a6010; font-family: inherit;
+    }
+    .autosave-banner button.primary { background: #c8a820; color: white; }
+
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #1a1714; color: #f0ede8; padding: 0.5rem 1.25rem; border-radius: 20px;
+      font-family: var(--font-mono); font-size: 0.75rem; opacity: 0; pointer-events: none;
+      transition: all 0.25s; z-index: 999; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #word-count {
+      font-family: var(--font-mono); font-size: 0.68rem; color: var(--ink-light);
+      padding: 0 1rem; white-space: nowrap;
+    }
+    .speech-bar {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 1rem; background: var(--panel);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    #speech-btn {
+      font-size: 0.78rem; padding: 0.35rem 0.85rem; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--paper); color: var(--ink-mid);
+      cursor: pointer; font-family: var(--font-sans); transition: all 0.15s; white-space: nowrap;
+    }
+    #speech-btn.recording {
+      background: #fde8e8; border-color: #c84b20; color: #c84b20;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    #speech-status {
+      font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-light);
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .speech-hint { font-size: 0.68rem; color: var(--ink-light); white-space: nowrap; }
+
+    .block-action-btn.danger:hover { background: #fde8e8; color: #c84b20; }
+
+    #emoji-picker {
+      display: none; position: absolute; background: var(--paper);
+      border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem;
+      z-index: 100; box-shadow: 0 4px 20px var(--shadow);
+      display: none; flex-wrap: wrap; gap: 2px; width: 220px;
+    }
+    #emoji-picker button {
+      background: none; border: none; font-size: 1.1rem; cursor: pointer;
+      padding: 0.2rem; border-radius: 3px; transition: background 0.1s;
+    }
+    #emoji-picker button:hover { background: var(--cream-dk); }
+
+    .shortcuts-hint {
+      font-size: 0.68rem; color: var(--ink-light); padding: 0.75rem 1.25rem;
+      border-top: 1px solid var(--border); line-height: 1.8;
+    }
+    .shortcut-key {
+      display: inline-block; background: var(--cream-dk); border: 1px solid var(--border);
+      border-radius: 3px; padding: 0 0.3em; font-family: var(--font-mono); font-size: 0.75em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Top bar -->
+<div class="editor-topbar">
+  <a href="../index.html" class="topbar-logo"><span>[</span>my blog<span>]</span></a>
+  <span class="topbar-title">/ editor</span>
+  <div class="topbar-actions">
+    <span id="word-count">0 words</span>
+    <button class="btn" onclick="switchTab('split')">Preview</button>
+    <button class="btn primary" onclick="generateFiles()">Generate Files</button>
+  </div>
+</div>
+
+<!-- Auto-save banner -->
+<div class="autosave-banner" id="autosave-banner">
+  <span>📄 You have an unsaved draft from a previous session.</span>
+  <div style="display:flex;gap:0.5rem;">
+    <button id="restore-btn" class="primary">Restore Draft</button>
+    <button id="discard-btn">Discard</button>
+  </div>
+</div>
+
+<!-- Speech bar -->
+<div class="speech-bar">
+  <button id="speech-btn">🎤 Speak</button>
+  <span id="speech-status"></span>
+  <span class="speech-hint">Click to dictate into the active text block · Works in Chrome/Edge</span>
+</div>
+
+<div class="editor-layout">
+
+  <!-- LEFT: Block Palette -->
+  <aside class="blocks-panel">
+    <div class="panel-header">Blocks — drag or click</div>
+    <div class="blocks-list" id="block-palette">
+
+      <div class="block-btn" draggable="true" data-type="markdown">
+        <span class="block-icon">P</span>
+        <div><div class="block-label">Markdown</div><div class="block-desc">Text, lists, links</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="heading">
+        <span class="block-icon">H</span>
+        <div><div class="block-label">Heading</div><div class="block-desc">H1, H2, H3, H4</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="math">
+        <span class="block-icon">∑</span>
+        <div><div class="block-label">Math (LaTeX)</div><div class="block-desc">Equations</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="code">
+        <span class="block-icon">&lt;/&gt;</span>
+        <div><div class="block-label">Code Block</div><div class="block-desc">14 languages</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="viz">
+        <span class="block-icon">◈</span>
+        <div><div class="block-label">Visualization</div><div class="block-desc">Embed HTML file</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="table">
+        <span class="block-icon">⊞</span>
+        <div><div class="block-label">Table</div><div class="block-desc">Visual table builder</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="image">
+        <span class="block-icon">🖼</span>
+        <div><div class="block-label">Image</div><div class="block-desc">URL + caption</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="callout">
+        <span class="block-icon">!</span>
+        <div><div class="block-label">Callout</div><div class="block-desc">Info / warning / tip</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="tweet">
+        <span class="block-icon">"</span>
+        <div><div class="block-label">Quote / Tweet</div><div class="block-desc">Styled quote block</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="toc">
+        <span class="block-icon">≡</span>
+        <div><div class="block-label">Table of Contents</div><div class="block-desc">Auto from headings</div></div>
+      </div>
+      <div class="block-btn" draggable="true" data-type="divider">
+        <span class="block-icon">—</span>
+        <div><div class="block-label">Divider</div><div class="block-desc">Section break</div></div>
+      </div>
+
+    </div>
+
+    <!-- Keyboard shortcuts -->
+    <div class="shortcuts-hint">
+      <strong style="display:block;margin-bottom:0.4rem;color:var(--ink-mid);">Shortcuts</strong>
+      <span class="shortcut-key">Ctrl+B</span> Bold &nbsp;
+      <span class="shortcut-key">Ctrl+I</span> Italic<br>
+      <span class="shortcut-key">Ctrl+K</span> Link &nbsp;
+      <span class="shortcut-key">Ctrl+S</span> Save<br>
+      <span class="shortcut-key">Ctrl+↵</span> Generate
+    </div>
+  </aside>
+
+  <!-- CENTER: Editor -->
+  <div class="editor-center">
+    <div class="editor-toolbar">
+      <button class="tool-btn" title="Bold (Ctrl+B)" onclick="wrapActive('**','**')"><strong>B</strong></button>
+      <button class="tool-btn" title="Italic (Ctrl+I)" onclick="wrapActive('_','_')"><em>I</em></button>
+      <button class="tool-btn" title="Strikethrough" onclick="wrapActive('~~','~~')">S̶</button>
+      <button class="tool-btn" title="Inline code" onclick="wrapActive('`','`')">` `</button>
+      <button class="tool-btn" title="Link (Ctrl+K)" onclick="insertLinkActive()">🔗</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" title="Bullet list" onclick="lineStartActive('- ')">• list</button>
+      <button class="tool-btn" title="Numbered list" onclick="lineStartActive('1. ')">1. list</button>
+      <button class="tool-btn" title="Blockquote" onclick="lineStartActive('> ')">❝</button>
+      <span class="tool-sep"></span>
+      <button class="tool-btn" title="Inline math" onclick="wrapActive('$','$')">$x$</button>
+      <button class="tool-btn" title="Display math" onclick="wrapActive('\n$$\n','\n$$\n')">$$</button>
+      <span class="tool-sep"></span>
+      <div style="position:relative;">
+        <button class="tool-btn" title="Emoji" onclick="toggleEmojiPicker()">😊</button>
+        <div id="emoji-picker">
+          <button onclick="insertEmoji('✅')">✅</button><button onclick="insertEmoji('⚠️')">⚠️</button>
+          <button onclick="insertEmoji('🚀')">🚀</button><button onclick="insertEmoji('💡')">💡</button>
+          <button onclick="insertEmoji('📌')">📌</button><button onclick="insertEmoji('🎯')">🎯</button>
+          <button onclick="insertEmoji('🔥')">🔥</button><button onclick="insertEmoji('⭐')">⭐</button>
+          <button onclick="insertEmoji('💻')">💻</button><button onclick="insertEmoji('📊')">📊</button>
+          <button onclick="insertEmoji('📝')">📝</button><button onclick="insertEmoji('🔍')">🔍</button>
+          <button onclick="insertEmoji('🎉')">🎉</button><button onclick="insertEmoji('❤️')">❤️</button>
+          <button onclick="insertEmoji('👀')">👀</button><button onclick="insertEmoji('🤔')">🤔</button>
+          <button onclick="insertEmoji('➡️')">➡️</button><button onclick="insertEmoji('✨')">✨</button>
+          <button onclick="insertEmoji('🧠')">🧠</button><button onclick="insertEmoji('📚')">📚</button>
+          <button onclick="insertEmoji('⚡')">⚡</button><button onclick="insertEmoji('🌍')">🌍</button>
+          <button onclick="insertEmoji('🏆')">🏆</button><button onclick="insertEmoji('💪')">💪</button>
+        </div>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" id="tab-edit" onclick="switchTab('edit')">Edit</button>
+        <button class="view-tab" id="tab-split" onclick="switchTab('split')">Split</button>
+        <button class="view-tab" id="tab-preview" onclick="switchTab('preview')">Preview</button>
+      </div>
+    </div>
+
+    <div class="editor-panes" id="editor-panes">
+      <div class="editor-drop-area" id="drop-area">
+        <div class="drop-hint" id="drop-hint">
+          Drag a block from the left panel, or click any block to add it here.<br>
+          <span style="font-size:0.75rem;opacity:0.6;">Use the 🎤 Speak button above to dictate text.</span>
+        </div>
+      </div>
+      <div class="preview-pane" id="preview-pane">
+        <div class="preview-pane-inner" id="preview-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Metadata -->
+  <aside class="meta-panel">
+    <div class="meta-section">
+      <span class="meta-section-title">Post Details</span>
+      <span class="meta-label">Title</span>
+      <input class="meta-input" id="meta-title" placeholder="My Post Title" oninput="updateSlug();triggerAutoSave();" />
+      <span class="meta-label">Slug (filename)</span>
+      <div class="slug-display" id="slug-display">my-post-title</div>
+      <span class="meta-label">Date</span>
+      <input class="meta-input" id="meta-date" type="date" onchange="triggerAutoSave()" />
+      <span class="meta-label">Excerpt</span>
+      <textarea class="meta-input" id="meta-excerpt" rows="3" placeholder="Short summary shown on homepage…" style="resize:vertical;font-family:inherit;line-height:1.5;" oninput="triggerAutoSave()"></textarea>
+    </div>
+
+    <!-- Cover image -->
+    <div class="meta-section">
+      <span class="meta-section-title">Cover Image <span style="font-weight:300;color:var(--ink-light);">(optional)</span></span>
+      <span class="meta-label">Image URL</span>
+      <input class="meta-input" id="cover-url" placeholder="https://... or assets/images/cover.jpg" oninput="updateCoverPreview();triggerAutoSave();" />
+      <div id="cover-preview" style="margin-top:0.5rem;"></div>
+      <p style="font-size:0.7rem;color:var(--ink-light);margin-top:0.3rem;">Displayed as a hero image at the top of the post.</p>
+    </div>
+
+    <div class="meta-section">
+      <span class="meta-section-title">Tags</span>
+      <div class="tags-input-wrap" id="tags-wrap" onclick="document.getElementById('tag-input').focus()">
+        <input class="tag-text-input" id="tag-input" placeholder="Add tag, press Enter" onkeydown="handleTagInput(event)" />
+      </div>
+    </div>
+
+    <div class="meta-section">
+      <span class="meta-section-title">Options</span>
+      <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;cursor:pointer;color:var(--ink-mid);">
+        <input type="checkbox" id="opt-featured" onchange="triggerAutoSave()" /> Featured post
+      </label>
+    </div>
+
+    <div class="meta-section">
+      <span class="meta-section-title">Quick Help</span>
+      <p style="font-size:0.72rem;color:var(--ink-light);line-height:1.8;">
+        <strong>🎤 Speech:</strong> Click "Speak", then talk. Text appears in the active block. Works in Chrome/Edge.<br><br>
+        <strong>⊞ Table:</strong> Use + Col / + Row to grow. Tab between cells.<br><br>
+        <strong>◈ Viz:</strong> Put HTML in <code style="background:var(--cream-dk);padding:0.1em 0.3em;border-radius:2px;font-size:0.85em;">visualizations/</code> and type the filename.<br><br>
+        <strong>Auto-save:</strong> Draft saves to browser automatically every few seconds.
+      </p>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Output Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 class="modal-title">Your Post Files</h2>
+    <p class="modal-subtitle">Copy these and follow the steps to publish on GitHub Pages.</p>
+
+    <strong style="font-size:0.75rem;color:var(--ink-light);letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:0.4rem;">
+      Step 1 — Save as <span id="modal-md-filename" style="color:var(--accent);font-family:var(--font-mono);"></span>
+    </strong>
+    <div class="output-area" id="modal-md-output"></div>
+    <div class="copy-btn-row">
+      <button class="btn primary" onclick="copyOut('modal-md-output', this)">Copy Markdown</button>
+    </div>
+
+    <br>
+    <strong style="font-size:0.75rem;color:var(--ink-light);letter-spacing:0.06em;text-transform:uppercase;display:block;margin-bottom:0.4rem;">
+      Step 2 — Add to <code style="font-family:var(--font-mono);font-size:0.9em;">posts/index.json</code>
+    </strong>
+    <div class="output-area" id="modal-json-output"></div>
+    <div class="copy-btn-row">
+      <button class="btn" onclick="copyOut('modal-json-output', this)">Copy JSON entry</button>
+    </div>
+
+    <br>
+    <div class="modal-steps">
+      <strong>Publishing checklist:</strong>
+      <ol>
+        <li>Save the Markdown as <code id="modal-step-fn"></code> in your <code>posts/</code> folder.</li>
+        <li>Open <code>posts/index.json</code> and paste the JSON entry into the array.</li>
+        <li>If you used a visualization, place that HTML in <code>visualizations/</code>.</li>
+        <li>If you added a cover image URL, make sure the image is accessible.</li>
+        <li>Commit and push to GitHub — your post goes live!</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>
