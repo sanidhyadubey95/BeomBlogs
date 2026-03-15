@@ -10,14 +10,14 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --ink:#1a1714;--ink-mid:#4a4540;--ink-light:#8a8078;
-      --cream:#f7f4ef;--cream-dk:#ede9e2;--paper:#faf8f5;
-      --accent:#c84b20;--accent-dk:#a03a15;
-      --border:#d8d2c8;--border-dk:#c0b8ae;--panel:#f2ede6;
-      --green:#3a8a4a;--blue:#2a6496;
-      --ff-serif:'Playfair Display',Georgia,serif;
-      --ff-sans:'DM Sans',system-ui,sans-serif;
-      --ff-mono:'DM Mono',monospace;
+      --ink:#e6edf3;--ink-mid:#8b949e;--ink-light:#6e7681;
+      --cream:#161b22;--cream-dk:#1c2333;--paper:#0d1117;
+      --accent:#f78166;--accent-dk:#e05c47;
+      --border:#21262d;--border-dk:#30363d;--panel:#13191f;
+      --green:#56d364;--blue:#79c0ff;
+      --ff-serif:'Source Serif 4',Georgia,serif;
+      --ff-sans:'Inter',system-ui,sans-serif;
+      --ff-mono:'JetBrains Mono',monospace;
     }
     html,body{height:100%;overflow:hidden}
     body{font-family:var(--ff-sans);background:var(--cream);color:var(--ink);display:flex;flex-direction:column}
@@ -32,12 +32,7 @@
     .topbar-right{margin-left:auto;display:flex;align-items:center;gap:.4rem;flex-wrap:nowrap}
     .wc{font-family:var(--ff-mono);font-size:.65rem;color:var(--ink-light);white-space:nowrap}
 
-    /* ── Editing bar ── */
-    .editing-bar{display:none;background:#fef3e2;border-bottom:1px solid #f0d090;
-      padding:.35rem 1.25rem;font-size:.75rem;color:#7a5a10;font-family:var(--ff-mono);
-      align-items:center;gap:.5rem;flex-shrink:0}
-    .editing-bar .editing-slug{font-weight:500;color:var(--accent)}
-    .editing-bar .editing-note{color:#9a7a30}
+
 
     /* ── Buttons ── */
     .btn{font-family:var(--ff-sans);font-size:.78rem;font-weight:400;padding:.32rem .85rem;
@@ -47,7 +42,7 @@
     .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:500}
     .btn.primary:hover{background:var(--accent-dk)}
     .btn.mic-btn{font-size:1rem;padding:.28rem .6rem}
-    .btn.mic-btn.active{background:#fde8e2;color:var(--accent);border-color:var(--accent);animation:pulse 1.2s ease infinite}
+    .btn.mic-btn.active{background:rgba(247,129,102,.15);color:var(--accent);border-color:var(--accent);animation:pulse 1.2s ease infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
     .view-tabs{display:flex;gap:2px}
     .view-tab{padding:.22rem .6rem;font-size:.7rem;border-radius:3px;cursor:pointer;
@@ -89,11 +84,11 @@
     .ft-sep{width:1px;height:14px;background:rgba(255,255,255,.2);margin:0 2px}
 
     /* ── Slash menu ── */
-    .slash-menu{position:fixed;z-index:300;background:var(--paper);border:1px solid var(--border);
-      border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.12);width:250px;overflow:hidden;display:none}
+    .slash-menu{position:fixed;z-index:300;background:#1c2333;border:1px solid var(--border);
+      border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);width:250px;overflow:hidden;display:none}
     .slash-menu.visible{display:block}
     .slash-hdr{padding:.45rem .75rem;font-family:var(--ff-mono);font-size:.62rem;color:var(--ink-light);
-      letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--cream)}
+      letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--cream-dk);color:var(--ink)}
     .slash-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;cursor:pointer;
       border:none;background:none;width:100%;text-align:left;transition:background .1s}
     .slash-item:hover,.slash-item.active{background:var(--cream-dk)}
@@ -102,8 +97,8 @@
     .slash-desc{font-size:.67rem;color:var(--ink-light)}
 
     /* ── Table picker ── */
-    .table-picker{position:fixed;z-index:400;background:var(--paper);border:1px solid var(--border);
-      border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:.75rem;display:none}
+    .table-picker{position:fixed;z-index:400;background:#1c2333;border:1px solid var(--border);
+      border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);padding:.75rem;display:none}
     .table-picker.visible{display:block}
     .table-size-label{font-family:var(--ff-mono);font-size:.68rem;color:var(--ink-light);
       margin-bottom:.5rem;text-align:center}
@@ -113,11 +108,11 @@
     .table-cell:hover,.table-cell.hover{background:var(--accent);border-color:var(--accent)}
 
     /* ── Emoji picker ── */
-    .emoji-picker{position:fixed;z-index:400;background:var(--paper);border:1px solid var(--border);
-      border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.12);width:300px;padding:.75rem;display:none}
+    .emoji-picker{position:fixed;z-index:400;background:#1c2333;border:1px solid var(--border);
+      border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.5);width:300px;padding:.75rem;display:none}
     .emoji-picker.visible{display:block}
     .emoji-search{width:100%;padding:.38rem .55rem;border:1px solid var(--border);border-radius:4px;
-      font-family:var(--ff-sans);font-size:.8rem;outline:none;margin-bottom:.45rem;background:var(--cream)}
+      font-family:var(--ff-sans);font-size:.8rem;outline:none;margin-bottom:.45rem;background:var(--cream-dk);color:var(--ink)}
     .emoji-search:focus{border-color:var(--accent)}
     .emoji-cats{display:flex;gap:3px;margin-bottom:.45rem;flex-wrap:wrap}
     .emoji-cat-btn{background:none;border:1px solid var(--border);border-radius:3px;padding:2px 5px;
@@ -157,7 +152,7 @@
     .preview-inner table{width:100%;border-collapse:collapse;margin:1.5rem 0;font-size:.88rem}
     .preview-inner th{border-bottom:2px solid var(--border);padding:.5rem .75rem;text-align:left;font-family:var(--ff-mono);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-light)}
     .preview-inner td{border-bottom:1px solid var(--border);padding:.6rem .75rem}
-    .preview-inner tr:hover td{background:var(--cream)}
+    .preview-inner tr:hover td{background:var(--cream-dk);color:var(--ink)}
     .preview-inner img{max-width:100%;border-radius:6px;margin:1rem 0}
     .preview-inner ul,.preview-inner ol{padding-left:1.5rem;margin-bottom:1.25rem}
     .preview-inner li{margin-bottom:.35rem;line-height:1.7}
@@ -190,7 +185,7 @@
     .modal-overlay{position:fixed;inset:0;background:rgba(26,23,20,.52);z-index:500;
       display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
     .modal-overlay.open{display:flex}
-    .modal-box{background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:1.75rem;
+    .modal-box{background:#161b22;border:1px solid var(--border);border-radius:8px;padding:1.75rem;
       width:630px;max-width:96vw;max-height:92vh;overflow-y:auto;position:relative}
     .modal-close{position:absolute;top:.85rem;right:.9rem;background:none;border:none;
       font-size:1.1rem;cursor:pointer;color:var(--ink-light)}
@@ -228,7 +223,7 @@
 <div class="topbar">
   <a href="../index.html" class="topbar-logo"><span>[</span>my blog<span>]</span></a>
   <div class="topbar-sep"></div>
-  <span class="topbar-mode">new post</span>
+  <span class="topbar-mode" id="topbar-title">new post</span>
   <div class="topbar-right">
     <span class="wc" id="word-count">0 words</span>
     <div class="topbar-sep"></div>
@@ -244,11 +239,6 @@
   </div>
 </div>
 
-<!-- Editing banner -->
-<div class="editing-bar" id="editing-bar" style="display:flex">
-  ✏️ Editing: <span class="editing-slug"></span>
-  <span class="editing-note">— make your changes, then click Publish to get the updated file</span>
-</div>
 
 <!-- Layout -->
 <div class="editor-layout">
@@ -293,7 +283,7 @@
     </div>
 
     <!-- Hint -->
-    <div class="hint-bar">
+    <div class="hint-bar" style="background:#0a0e14">
       Type <strong>/</strong> at a blank line for commands &nbsp;·&nbsp; Select text for formatting toolbar &nbsp;·&nbsp; 🎤 for speech-to-text
     </div>
   </div>
