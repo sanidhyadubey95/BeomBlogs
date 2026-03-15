@@ -1,49 +1,41 @@
 /**
- * archive.js — Renders the full archive list
+ * archive.js — Archive page grouped by year
  */
-
-(async () => {
-  const list = document.getElementById('archive-list');
+(async function() {
+  var list = document.getElementById('archive-list');
   if (!list) return;
-
-  const posts = await BlogPosts.load();
-
+  var posts = await BlogPosts.load();
   if (!posts.length) {
-    list.innerHTML = '<div class="posts-loading">No posts yet. <a href="admin/editor.html">Write your first post →</a></div>';
+    list.innerHTML = '<div class="posts-loading">No posts yet.</div>';
     return;
   }
-
   list.innerHTML = '';
-
-  // Group by year
-  const byYear = {};
-  posts.forEach(post => {
-    const year = post.date.split('-')[0];
-    if (!byYear[year]) byYear[year] = [];
-    byYear[year].push(post);
+  var byYear = {};
+  posts.forEach(function(p) {
+    var y = p.date.split('-')[0];
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(p);
   });
-
-  Object.keys(byYear).sort((a, b) => b - a).forEach(year => {
-    const yearHeader = document.createElement('div');
-    yearHeader.style.cssText = 'font-family:var(--font-mono);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-light);padding:1.5rem 0 0.5rem;';
-    yearHeader.textContent = year;
-    list.appendChild(yearHeader);
-
-    byYear[year].forEach((post, i) => {
-      const tags = (post.tags || []).slice(0, 3).map(t =>
-        `<span class="post-tag">${t}</span>`
-      ).join('');
-
-      const item = document.createElement('a');
-      item.href = BlogPosts.slugToUrl(post.slug, true);
+  Object.keys(byYear).sort(function(a,b){ return b-a; }).forEach(function(year) {
+    var grp = document.createElement('div');
+    grp.className = 'archive-year-group';
+    var yh = document.createElement('div');
+    yh.className = 'archive-year';
+    yh.textContent = year;
+    grp.appendChild(yh);
+    byYear[year].forEach(function(post) {
+      var tags = (post.tags||[]).slice(0,3).map(function(t){
+        return '<span class="post-tag">'+t+'</span>';
+      }).join('');
+      var item = document.createElement('a');
+      item.href      = BlogPosts.slugToUrl(post.slug);
       item.className = 'archive-item';
-      item.style.animationDelay = `${i * 0.04}s`;
-      item.innerHTML = `
-        <span class="archive-item-date">${BlogPosts.formatDate(post.date)}</span>
-        <span class="archive-item-title">${post.title}</span>
-        <span class="archive-item-tags">${tags}</span>
-      `;
-      list.appendChild(item);
+      item.innerHTML =
+        '<span class="archive-item-date">'+BlogPosts.formatDate(post.date)+'</span>'+
+        '<span class="archive-item-title">'+post.title+'</span>'+
+        '<span class="archive-item-tags">'+tags+'</span>';
+      grp.appendChild(item);
     });
+    list.appendChild(grp);
   });
 })();

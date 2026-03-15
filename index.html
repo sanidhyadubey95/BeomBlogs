@@ -1,54 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Blog</title>
-  <link rel="stylesheet" href="assets/css/main.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BeomBlogs</title>
+  <meta name="description" content="Ideas, explorations and experiments in mathematics, code and data."/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css"/>
 </head>
 <body>
-
-<div class="noise-overlay"></div>
-
 <header class="site-header">
   <div class="header-inner">
-    <a href="index.html" class="site-logo">
-      <span class="logo-bracket">[</span>
-      <span class="logo-text">my blog</span>
-      <span class="logo-bracket">]</span>
-    </a>
+    <a href="index.html" class="site-logo">Beom<span class="logo-accent">Blogs</span></a>
     <nav class="site-nav">
       <a href="index.html" class="nav-link active">Home</a>
       <a href="archive.html" class="nav-link">Archive</a>
       <a href="about.html" class="nav-link">About</a>
     </nav>
-    <div class="header-accent"></div>
+    <a href="admin/editor.html" class="header-write-btn">+ Write</a>
   </div>
 </header>
 
 <main class="site-main">
   <section class="hero">
-    <div class="hero-inner">
-      <p class="hero-kicker">Welcome to my corner of the internet</p>
-      <h1 class="hero-title">Ideas, explorations<br/><em>& experiments</em></h1>
-      <p class="hero-sub">Writing about technology, mathematics, data, and whatever else catches my attention.</p>
-    </div>
-    <div class="hero-deco">
-      <div class="deco-ring ring-1"></div>
-      <div class="deco-ring ring-2"></div>
-      <div class="deco-ring ring-3"></div>
-    </div>
+    <p class="hero-kicker">Research · Ideas · Explorations</p>
+    <h1 class="hero-title">Writing about things<br><em>worth exploring</em></h1>
+    <p class="hero-desc">A space for long-form writing on mathematics, code, data visualizations, and ideas that don't fit neatly anywhere else.</p>
   </section>
 
   <section class="posts-section">
     <div class="section-header">
-      <h2 class="section-title">Latest Posts</h2>
+      <span class="section-title">Latest Posts</span>
       <div class="section-line"></div>
+      <a href="archive.html" style="font-family:var(--ff-mono);font-size:.68rem;color:var(--ink-faint);white-space:nowrap;text-decoration:none;">All posts →</a>
     </div>
     <div class="posts-grid" id="posts-grid">
-      <!-- Posts are injected by JavaScript -->
       <div class="posts-loading">Loading posts…</div>
     </div>
   </section>
@@ -56,7 +43,12 @@
 
 <footer class="site-footer">
   <div class="footer-inner">
-    <p class="footer-copy">Built with ♥ using plain HTML, CSS & JS. <a href="admin/editor.html">Write a post →</a></p>
+    <p class="footer-copy">BeomBlogs — built with plain HTML, CSS &amp; JS on GitHub Pages.</p>
+    <div class="footer-links">
+      <a href="archive.html">Archive</a>
+      <a href="about.html">About</a>
+      <a href="admin/editor.html">Write</a>
+    </div>
   </div>
 </footer>
 
