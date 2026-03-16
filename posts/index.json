@@ -1,12 +1,16 @@
 [
   {
-    "slug": "welcome-to-my-blog",
-    "title": "Welcome to My Blog",
-    "date": "2025-03-14",
-    "tags": ["meta", "introduction"],
-    "excerpt": "A quick introduction to this blog, how it works, and what you can expect to find here.",
-    "featured": true
-  },
+  "slug": "welcome-to-my-blog",
+  "title": "Welcome to My Blog",
+  "date": "2025-03-14",
+  "tags": [
+    "meta",
+    "introduction"
+  ],
+  "excerpt": "A quick introduction to this blog, how it works, and what you can expect to find here.",
+  "featured": true,
+  "cover": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRoSMZgTmXBYUqyifVdKvxd9OZ4QMwvEVuI0Pjb6kJZcfw7JBksUxOoHuBHqCdmBo7dWNtxVumyjrWS-JsMLQy3Lsc1uzj0WEkJzmuVXEJMig&s=10"
+},
   {
     "slug": "exploring-the-mandelbrot-set",
     "title": "Exploring the Mandelbrot Set",
