@@ -60,7 +60,7 @@ async function loadPostForEditing(slug) {
 
   var bar = document.getElementById('editing-bar');
   if (bar) { bar.style.display = ''; bar.querySelector('.editing-slug').textContent = slug + '.md'; }
-  document.querySelector('.topbar-mode').textContent = 'editing';
+  var _tm=document.getElementById('topbar-title');if(_tm)_tm.textContent='editing: '+slug;
 
   // Load metadata
   try {
@@ -72,6 +72,10 @@ async function loadPostForEditing(slug) {
       document.getElementById('meta-date').value    = meta.date    || '';
       document.getElementById('meta-excerpt').value = meta.excerpt || '';
       document.getElementById('opt-featured').checked = !!meta.featured;
+      if (meta.cover) {
+        var ci = document.getElementById('meta-cover');
+        if (ci) { ci.value = meta.cover; updateCoverPreview(); }
+      }
       tags = (meta.tags || []).slice();
       renderTags();
       autoResize(document.getElementById('post-title'));
@@ -115,6 +119,19 @@ function updateWC() {
   var t = (document.getElementById('post-title').value + ' ' + document.getElementById('main-editor').value).trim();
   var w = t ? t.split(/\s+/).filter(Boolean).length : 0;
   document.getElementById('word-count').textContent = w + ' word' + (w===1?'':'s');
+}
+
+function updateCoverPreview(){
+  var inp=document.getElementById('meta-cover'),prev=document.getElementById('cover-preview'),img=document.getElementById('cover-img');
+  if(!inp||!prev||!img)return;
+  var url=inp.value.trim();
+  if(url){img.src=url;prev.style.display='';}else{prev.style.display='none';}
+}
+
+function clearCover(){
+  var inp=document.getElementById('meta-cover');
+  if(inp)inp.value='';
+  updateCoverPreview();
 }
 
 // ─── Slug ──────────────────────────────────────────────────────────────────────
@@ -536,7 +553,9 @@ function generateFiles() {
   var fullBody = subtitle?'> '+subtitle+'\n\n'+body:body;
   var mdContent= fm+fullBody;
 
+  var coverVal = (document.getElementById('meta-cover')||{value:''}).value.trim();
   var entry    = {slug:slug,title:title,date:date,tags:tags.slice(),excerpt:excerpt,featured:featured};
+  if (coverVal) entry.cover = coverVal;
   var filename = slug+'.md';
 
   document.getElementById('modal-filename').textContent='posts/'+filename;
