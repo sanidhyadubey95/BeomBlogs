@@ -8,6 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/main.css"/>
+  <style>
+    .hero { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
+    .hero-text { flex: 1; min-width: 0; }
+    .hero-bear { width: 220px; flex-shrink: 0; }
+    @media(max-width:700px){ .hero { flex-direction: column; } .hero-bear { width: 160px; margin: 0 auto; } }
+  </style>
 </head>
 <body>
 <header class="site-header">
@@ -24,9 +30,117 @@
 
 <main class="site-main">
   <section class="hero">
-    <p class="hero-kicker">Research · Ideas · Explorations</p>
-    <h1 class="hero-title">Writing about things<br><em>worth exploring</em></h1>
-    <p class="hero-desc">A space for long-form writing on mathematics, code, data visualizations, and ideas that don't fit neatly anywhere else.</p>
+    <div class="hero-text">
+      <p class="hero-kicker">Research · Ideas · Explorations</p>
+      <h1 class="hero-title">Writing about things<br><em>worth exploring</em></h1>
+      <p class="hero-desc">A space for long-form writing on mathematics, code, data visualizations, and ideas that don't fit neatly anywhere else.</p>
+    </div>
+    <div class="hero-bear" aria-hidden="true">
+      <svg width="100%" viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          @keyframes bfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+          @keyframes bblink{0%,88%,100%{transform:scaleY(1)}93%{transform:scaleY(0.07)}}
+          @keyframes btail{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(14deg)}}
+          @keyframes bpage{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-9deg)}}
+          @keyframes bpencil{0%,100%{transform:translate(0,0)}50%{transform:translate(3px,2px)}}
+          @keyframes bsteam{0%{opacity:0;transform:translateY(0)}40%{opacity:.65}100%{opacity:0;transform:translateY(-18px)}}
+          @keyframes bsparkle{0%,100%{opacity:.15;transform:scale(.8)}50%{opacity:.7;transform:scale(1.1)}}
+          .bg{animation:bfloat 3.2s ease-in-out infinite;transform-origin:130px 190px}
+          .bblink{animation:bblink 4.5s ease-in-out infinite;transform-origin:130px 145px}
+          .btail{animation:btail 1.1s ease-in-out infinite;transform-origin:98px 214px}
+          .bpage{animation:bpage 2.2s ease-in-out infinite;transform-origin:142px 207px}
+          .bpencil{animation:bpencil 1.6s ease-in-out infinite;transform-origin:180px 234px}
+          .bs1{animation:bsteam 2.1s ease-out infinite}
+          .bs2{animation:bsteam 2.1s ease-out .72s infinite}
+          .bs3{animation:bsteam 2.1s ease-out 1.4s infinite}
+          .bsp1{animation:bsparkle 2.8s ease-in-out infinite}
+          .bsp2{animation:bsparkle 3.4s ease-in-out .9s infinite}
+          .bsp3{animation:bsparkle 2.5s ease-in-out 1.6s infinite}
+        </style>
+        <g class="bg">
+          <!-- Mug -->
+          <rect x="58" y="242" width="36" height="26" rx="4" fill="#1c1208" stroke="#3a2810" stroke-width="1.5"/>
+          <rect x="58" y="242" width="36" height="8" rx="3" fill="#2a1c10"/>
+          <path d="M94 252 Q104 252 104 259 Q104 266 94 266" fill="none" stroke="#3a2810" stroke-width="2.5" stroke-linecap="round"/>
+          <text x="76" y="254" text-anchor="middle" font-size="9" fill="#f97316" font-family="serif">☕</text>
+          <path class="bs1" d="M68 241 Q70 234 68 227" fill="none" stroke="#6e7681" stroke-width="1.2" stroke-linecap="round"/>
+          <path class="bs2" d="M76 241 Q78 233 76 226" fill="none" stroke="#6e7681" stroke-width="1.2" stroke-linecap="round"/>
+          <path class="bs3" d="M84 241 Q86 234 84 227" fill="none" stroke="#6e7681" stroke-width="1.2" stroke-linecap="round"/>
+          <!-- Paper with formulas -->
+          <g class="bpage">
+            <rect x="112" y="243" width="52" height="30" rx="3" fill="#f5edd8" stroke="#c8b085" stroke-width="1"/>
+            <text x="116" y="252" font-size="5.8" fill="#7a5a2a" font-family="monospace">∑ xᵢ = π²/6</text>
+            <text x="116" y="260" font-size="5.5" fill="#9a7a4a" font-family="monospace">∫f(x)dx = F</text>
+            <text x="116" y="268" font-size="5.5" fill="#9a7a4a" font-family="monospace">E = mc²</text>
+          </g>
+          <!-- Desk -->
+          <rect x="48" y="266" width="166" height="7" rx="2" fill="#131920" stroke="#21262d" stroke-width="1"/>
+          <!-- Body -->
+          <ellipse cx="130" cy="215" rx="40" ry="43" fill="#7a5535" stroke="#5a3a20" stroke-width="1.5"/>
+          <ellipse cx="130" cy="220" rx="24" ry="27" fill="#b8906a"/>
+          <!-- Tail -->
+          <g class="btail">
+            <circle cx="97" cy="216" r="10" fill="#6a4828" stroke="#5a3820" stroke-width="1"/>
+          </g>
+          <!-- Left arm (mug) -->
+          <path d="M94 208 Q70 220 72 244" fill="none" stroke="#7a5535" stroke-width="15" stroke-linecap="round"/>
+          <ellipse cx="73" cy="246" rx="11" ry="9" fill="#6a4828"/>
+          <!-- Right arm (pencil) -->
+          <g class="bpencil">
+            <path d="M166 204 Q184 214 186 236" fill="none" stroke="#7a5535" stroke-width="15" stroke-linecap="round"/>
+            <ellipse cx="185" cy="238" rx="10" ry="8" fill="#6a4828"/>
+            <g transform="rotate(-22,185,238)">
+              <rect x="182" y="224" width="5.5" height="22" rx="1.5" fill="#f0c030"/>
+              <polygon points="182,246 187.5,246 184.7,255" fill="#e08820"/>
+              <rect x="182" y="224" width="5.5" height="4" rx="1" fill="#e09090"/>
+              <line x1="184.7" y1="224" x2="184.7" y2="232" stroke="#c8a020" stroke-width=".6"/>
+            </g>
+          </g>
+          <!-- Head -->
+          <circle cx="130" cy="154" r="40" fill="#7a5535" stroke="#5a3a20" stroke-width="1.5"/>
+          <ellipse cx="130" cy="165" rx="24" ry="17" fill="#b8906a"/>
+          <!-- Ears -->
+          <circle cx="98" cy="122" r="15" fill="#7a5535" stroke="#5a3a20" stroke-width="1.5"/>
+          <circle cx="98" cy="122" r="8" fill="#b8906a"/>
+          <circle cx="162" cy="122" r="15" fill="#7a5535" stroke="#5a3a20" stroke-width="1.5"/>
+          <circle cx="162" cy="122" r="8" fill="#b8906a"/>
+          <!-- Glasses -->
+          <circle cx="118" cy="152" r="14" fill="rgba(121,192,255,.07)" stroke="#111820" stroke-width="2.5"/>
+          <circle cx="142" cy="152" r="14" fill="rgba(121,192,255,.07)" stroke="#111820" stroke-width="2.5"/>
+          <line x1="132" y1="152" x2="128" y2="152" stroke="#111820" stroke-width="2.5"/>
+          <path d="M104 150 Q101 145 97 145" fill="none" stroke="#111820" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M156 150 Q159 145 163 145" fill="none" stroke="#111820" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="113" cy="147" r="3.5" fill="rgba(255,255,255,.22)"/>
+          <circle cx="137" cy="147" r="3.5" fill="rgba(255,255,255,.22)"/>
+          <!-- Eyes -->
+          <g class="bblink">
+            <circle cx="118" cy="152" r="8" fill="#1a0e08"/>
+            <circle cx="142" cy="152" r="8" fill="#1a0e08"/>
+            <circle cx="120" cy="149" r="2.8" fill="white"/>
+            <circle cx="144" cy="149" r="2.8" fill="white"/>
+          </g>
+          <!-- Nose -->
+          <ellipse cx="130" cy="166" rx="7.5" ry="5.5" fill="#3a1e0c"/>
+          <circle cx="127" cy="167" r="1.8" fill="#2a1208"/>
+          <circle cx="133" cy="167" r="1.8" fill="#2a1208"/>
+          <!-- Smile -->
+          <path d="M119 173 Q130 181 141 173" fill="none" stroke="#3a1e0c" stroke-width="2.2" stroke-linecap="round"/>
+          <!-- Graduation cap -->
+          <rect x="103" y="112" width="54" height="9" rx="1.5" fill="#0d1117" stroke="#21262d" stroke-width="1"/>
+          <polygon points="130,94 105,113 155,113" fill="#0a0f18" stroke="#21262d" stroke-width="1"/>
+          <line x1="155" y1="113" x2="166" y2="104" stroke="#f97316" stroke-width="1.8"/>
+          <circle cx="167" cy="103" r="3.5" fill="#f97316"/>
+          <line x1="167" y1="107" x2="162" y2="118" stroke="#f97316" stroke-width="1.4"/>
+          <line x1="167" y1="107" x2="167" y2="119" stroke="#f97316" stroke-width="1.4"/>
+          <line x1="167" y1="107" x2="172" y2="118" stroke="#f97316" stroke-width="1.4"/>
+          <!-- Floating sparkles -->
+          <text class="bsp1" x="44" y="148" font-size="13" fill="#f97316" font-family="sans-serif">✦</text>
+          <text class="bsp2" x="198" y="158" font-size="10" fill="#79c0ff" font-family="sans-serif">✦</text>
+          <text class="bsp3" x="38" y="196" font-size="9" fill="#56d364" font-family="sans-serif">✦</text>
+          <text class="bsp1" x="202" y="210" font-size="8" fill="#a78bfa" font-family="sans-serif">✦</text>
+        </g>
+      </svg>
+    </div>
   </section>
 
   <section class="posts-section">
