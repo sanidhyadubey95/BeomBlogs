@@ -282,7 +282,7 @@
       <button class="ib-btn" onclick="insertLink()">🔗</button>
       <div class="ib-sep"></div>
       <button class="ib-btn" onclick="insertSnippet('\n$$\n','\n$$\n')">∑ Math</button>
-      <button class="ib-btn" data-picker="table" onclick="showTablePicker(event,this)">⊞ Table</button>
+      <button class="ib-btn" data-picker="table" onclick="showTablePicker(event)">⊞ Table</button>
       <button class="ib-btn" onclick="insertSnippet('\n```javascript\n','\n```\n')">&lt;/&gt; Code</button>
       <button class="ib-btn" onclick="insertSnippet('[viz: ',']\n')">◈ Viz</button>
       <button class="ib-btn" onclick="insertSnippet('> ','')">❝ Quote</button>
@@ -315,6 +315,12 @@
       <textarea class="meta-input" id="meta-excerpt" rows="2"
         placeholder="Leave blank to use subtitle"
         style="resize:vertical;font-family:inherit;line-height:1.5;font-size:.76rem"></textarea>
+      <span class="meta-label" style="margin-top:.5rem;display:block">Cover Image <span style="color:var(--ink-faint);font-size:.65rem">(optional)</span></span>
+      <input class="meta-input" id="meta-cover" type="text" placeholder="URL or assets/images/photo.jpg" oninput="updateCoverPreview()" style="font-size:.76rem"/>
+      <div id="cover-preview" style="display:none;margin-top:.4rem">
+        <img id="cover-img" src="" alt="" style="width:100%;height:78px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"/>
+        <button onclick="clearCover()" style="width:100%;margin-top:.25rem;font-size:.67rem;font-family:var(--ff-mono);background:none;border:1px solid var(--border-dk);border-radius:3px;padding:.22rem;color:var(--ink-light);cursor:pointer">x Remove cover</button>
+      </div>
     </div>
     <div class="meta-section">
       <span class="meta-section-title">Tags</span>
