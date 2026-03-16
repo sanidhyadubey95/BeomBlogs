@@ -1,7 +1,6 @@
 /**
- * post-viewer.js — fixed for GitHub Pages /BeomBlogs/
+ * post-viewer.js — /BeomBlogs/ paths, edit button, glass tile layout
  */
-
 (async () => {
   const article = document.getElementById('post-article');
   const params  = new URLSearchParams(window.location.search);
@@ -31,14 +30,15 @@
     markdown = await res.text();
   } catch (e) {
     article.innerHTML =
-      '<div class="post-header">' +
-        '<div class="post-header-meta"><a href="' + BASE + '/index.html" class="post-back-link">Home</a></div>' +
-        '<h1 class="post-title">Post not found</h1>' +
-      '</div>' +
-      '<div class="post-body">' +
-        '<p>Could not load <code>' + slug + '.md</code>.</p>' +
-        '<p>Make sure the file exists in your <code>posts/</code> folder and the slug in <code>index.json</code> matches the filename exactly.</p>' +
-        '<p><a href="' + BASE + '/index.html">← Back to home</a></p>' +
+      '<div class="post-glass">' +
+        '<div class="post-header">' +
+          '<div class="post-header-meta"><a href="' + BASE + '/index.html" class="post-back-link">Home</a></div>' +
+          '<h1 class="post-title">Post not found</h1>' +
+        '</div>' +
+        '<div class="post-body">' +
+          '<p>Could not load <code>' + slug + '.md</code>.</p>' +
+          '<p><a href="' + BASE + '/index.html">\u2190 Back to home</a></p>' +
+        '</div>' +
       '</div>';
     return;
   }
@@ -61,7 +61,7 @@
     marked.setOptions({ breaks: false, gfm: true });
     html = marked.parse(body);
   } else {
-    html = '<p style="color:red;">marked.js not loaded. Check internet connection.</p><pre>' + body + '</pre>';
+    html = '<p style="color:red;">marked.js not loaded.</p><pre>' + body + '</pre>';
   }
 
   // 6. Replace viz placeholders with iframes
@@ -76,25 +76,31 @@
     html = html.replace('<p>' + key + '</p>', iframe);
   });
 
-  // 7. Build page HTML
+  // 7. Build page — edit button in header
   var tagsHtml = (meta && meta.tags)
     ? meta.tags.map(function(t){ return '<span class="post-tag">' + t + '</span>'; }).join('')
     : '';
   var dateHtml = meta ? '<span class="post-date">' + formatDate(meta.date) + '</span>' : '';
   var title    = meta ? meta.title : slug;
+  var editUrl  = BASE + '/admin/editor.html?edit=' + slug;
 
   article.innerHTML =
-    '<div class="post-header">' +
-      '<div class="post-header-meta">' +
-        '<a href="' + BASE + '/index.html" class="post-back-link">Home</a>' +
-        '<div class="post-header-tags">' + tagsHtml + '</div>' +
+    '<div class="post-glass">' +
+      '<div class="post-header">' +
+        '<div class="post-header-meta">' +
+          '<a href="' + BASE + '/index.html" class="post-back-link">Home</a>' +
+          '<div class="post-header-right">' +
+            '<div class="post-header-tags">' + tagsHtml + '</div>' +
+            '<a href="' + editUrl + '" class="post-edit-btn-inline">\u270e Edit post</a>' +
+          '</div>' +
+        '</div>' +
+        '<h1 class="post-title">' + title + '</h1>' +
+        dateHtml +
       '</div>' +
-      '<h1 class="post-title">' + title + '</h1>' +
-      dateHtml +
-    '</div>' +
-    '<div class="post-body" id="post-body">' + html + '</div>';
+      '<div class="post-body" id="post-body">' + html + '</div>' +
+    '</div>';
 
-  document.title = title + ' — My Blog';
+  document.title = title + ' \u2014 BeomBlogs';
 
   // 8. Syntax highlighting
   if (typeof hljs !== 'undefined') {
