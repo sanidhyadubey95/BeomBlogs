@@ -60,7 +60,8 @@ async function loadPostForEditing(slug) {
 
   var bar = document.getElementById('editing-bar');
   if (bar) { bar.style.display = ''; bar.querySelector('.editing-slug').textContent = slug + '.md'; }
-  document.querySelector('.topbar-mode').textContent = 'editing';
+  var modeEl = document.getElementById('topbar-title');
+  if (modeEl) modeEl.textContent = 'editing: ' + slug;
 
   // Load metadata
   try {
@@ -72,6 +73,10 @@ async function loadPostForEditing(slug) {
       document.getElementById('meta-date').value    = meta.date    || '';
       document.getElementById('meta-excerpt').value = meta.excerpt || '';
       document.getElementById('opt-featured').checked = !!meta.featured;
+      if (meta.cover) {
+        var ci = document.getElementById('meta-cover');
+        if (ci) { ci.value = meta.cover; updateCoverPreview(); }
+      }
       tags = (meta.tags || []).slice();
       renderTags();
       autoResize(document.getElementById('post-title'));
@@ -103,11 +108,8 @@ async function loadPostForEditing(slug) {
 
 // ─── Auto-resize ───────────────────────────────────────────────────────────────
 function autoResize(el) {
-  var scroller = document.getElementById('editor-scroll');
-  var st = scroller ? scroller.scrollTop : window.scrollY;
   el.style.height = 'auto';
   el.style.height = (el.scrollHeight + 2) + 'px';
-  if (scroller) scroller.scrollTop = st; else window.scrollTo(0, st);
 }
 
 // ─── Word count ────────────────────────────────────────────────────────────────
@@ -115,6 +117,22 @@ function updateWC() {
   var t = (document.getElementById('post-title').value + ' ' + document.getElementById('main-editor').value).trim();
   var w = t ? t.split(/\s+/).filter(Boolean).length : 0;
   document.getElementById('word-count').textContent = w + ' word' + (w===1?'':'s');
+}
+
+function updateCoverPreview() {
+  var inp  = document.getElementById('meta-cover');
+  var prev = document.getElementById('cover-preview');
+  var img  = document.getElementById('cover-img');
+  if (!inp||!prev||!img) return;
+  var url = inp.value.trim();
+  if (url) { img.src = url; prev.style.display = ''; }
+  else     { prev.style.display = 'none'; }
+}
+
+function clearCover() {
+  var inp = document.getElementById('meta-cover');
+  if (inp) inp.value = '';
+  updateCoverPreview();
 }
 
 // ─── Slug ──────────────────────────────────────────────────────────────────────
@@ -345,25 +363,21 @@ function doInsertTable(rows, cols) {
   closeTablePicker();
 }
 
-function showTablePicker(e, btnEl) {
-  e.preventDefault();
-  e.stopPropagation();
+function showTablePicker(e) {
   var picker = document.getElementById('table-picker');
-  // btnEl is passed from onclick="showTablePicker(event,this)"
-  var btn  = btnEl || e.currentTarget || e.target;
-  while (btn && btn.tagName !== 'BUTTON') btn = btn.parentElement;
-  var rect = btn.getBoundingClientRect();
-  var top  = rect.bottom + 6;
-  var left = rect.left;
-  if (left + 160 > window.innerWidth)  left = window.innerWidth  - 164;
-  if (top  + 200 > window.innerHeight) top  = rect.top - 200;
-  picker.style.top  = Math.max(4, top)  + 'px';
-  picker.style.left = Math.max(4, left) + 'px';
+  var rect   = e.target.getBoundingClientRect();
+  var top    = rect.bottom + 6;
+  var left   = rect.left;
+  if (left + 180 > window.innerWidth) left = window.innerWidth - 186;
+  if (top  + 180 > window.innerHeight) top = rect.top - 180;
+  picker.style.top  = top  + 'px';
+  picker.style.left = left + 'px';
   picker.classList.add('visible');
-  // Reset highlights and label
+  e.stopPropagation();
+  // Reset highlights
   document.querySelectorAll('.table-cell').forEach(function(c){ c.classList.remove('hover'); });
   var lbl = document.getElementById('table-size-label');
-  if (lbl) lbl.textContent = 'Hover to pick size, click to insert';
+  if (lbl) lbl.textContent = 'Hover to pick size';
 }
 
 function closeTablePicker() {
@@ -536,7 +550,9 @@ function generateFiles() {
   var fullBody = subtitle?'> '+subtitle+'\n\n'+body:body;
   var mdContent= fm+fullBody;
 
+  var coverVal = (document.getElementById('meta-cover')||{value:''}).value.trim();
   var entry    = {slug:slug,title:title,date:date,tags:tags.slice(),excerpt:excerpt,featured:featured};
+  if (coverVal) entry.cover = coverVal;
   var filename = slug+'.md';
 
   document.getElementById('modal-filename').textContent='posts/'+filename;
