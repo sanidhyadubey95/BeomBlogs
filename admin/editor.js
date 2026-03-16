@@ -60,7 +60,8 @@ async function loadPostForEditing(slug) {
 
   var bar = document.getElementById('editing-bar');
   if (bar) { bar.style.display = ''; bar.querySelector('.editing-slug').textContent = slug + '.md'; }
-  document.querySelector('.topbar-mode').textContent = 'editing';
+  var modeEl = document.getElementById('topbar-title');
+  if (modeEl) modeEl.textContent = 'editing: ' + slug;
 
   // Load metadata
   try {
@@ -72,9 +73,9 @@ async function loadPostForEditing(slug) {
       document.getElementById('meta-date').value    = meta.date    || '';
       document.getElementById('meta-excerpt').value = meta.excerpt || '';
       document.getElementById('opt-featured').checked = !!meta.featured;
-      if (meta.cover && document.getElementById('meta-cover')) {
-        document.getElementById('meta-cover').value = meta.cover;
-        updateCoverPreview();
+      if (meta.cover) {
+        var ci = document.getElementById('meta-cover');
+        if (ci) { ci.value = meta.cover; updateCoverPreview(); }
       }
       tags = (meta.tags || []).slice();
       renderTags();
@@ -119,20 +120,19 @@ function updateWC() {
 }
 
 function updateCoverPreview() {
-  var url  = (document.getElementById('meta-cover')||{}).value||'';
+  var inp  = document.getElementById('meta-cover');
   var prev = document.getElementById('cover-preview');
   var img  = document.getElementById('cover-img');
-  if (!prev||!img) return;
-  url = url.trim();
-  if (url) { img.src=url; prev.style.display=''; }
-  else     { prev.style.display='none'; }
+  if (!inp||!prev||!img) return;
+  var url = inp.value.trim();
+  if (url) { img.src = url; prev.style.display = ''; }
+  else     { prev.style.display = 'none'; }
 }
 
 function clearCover() {
   var inp = document.getElementById('meta-cover');
-  if (inp) inp.value='';
-  var prev = document.getElementById('cover-preview');
-  if (prev) prev.style.display='none';
+  if (inp) inp.value = '';
+  updateCoverPreview();
 }
 
 // ─── Slug ──────────────────────────────────────────────────────────────────────
@@ -550,9 +550,9 @@ function generateFiles() {
   var fullBody = subtitle?'> '+subtitle+'\n\n'+body:body;
   var mdContent= fm+fullBody;
 
-  var cover    = (document.getElementById('meta-cover')||{value:''}).value.trim();
+  var coverVal = (document.getElementById('meta-cover')||{value:''}).value.trim();
   var entry    = {slug:slug,title:title,date:date,tags:tags.slice(),excerpt:excerpt,featured:featured};
-  if (cover) entry.cover = cover;
+  if (coverVal) entry.cover = coverVal;
   var filename = slug+'.md';
 
   document.getElementById('modal-filename').textContent='posts/'+filename;
