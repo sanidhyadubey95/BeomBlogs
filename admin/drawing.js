@@ -51,7 +51,7 @@ function makeShape(type, x, y, w, h) {
     strokeStyle:  drawState.strokeStyle,
     fillEnabled:  drawState.fillEnabled,
     fillColor:    drawState.fillColor,
-    resizable:    type !== 'star',   // stars not resizable
+    resizable:    true,   // all shapes resizable
   };
 }
 
@@ -225,13 +225,6 @@ function drawHandles(c, sh) {
   c.strokeRect(sh.x - 2, sh.y - 2, sh.w + 4, sh.h + 4);
   c.setLineDash([]); // reset before drawing handles
 
-  if (!sh.resizable) {
-    // Stars: single orange centre handle for moving only
-    drawHandle(c, sh.x + sh.w/2, sh.y + sh.h/2, '#f78166', 7);
-    c.restore();
-    return;
-  }
-
   // 8 white resize handles
   getHandles(sh).forEach(function(hnd) {
     drawHandle(c, hnd.x, hnd.y, '#ffffff', HANDLE_R);
@@ -250,12 +243,6 @@ function drawHandle(c, x, y, fill, r) {
 }
 
 function hitHandle(sh, px, py) {
-  if (!sh.resizable) {
-    // Just check centre move handle
-    var cx = sh.x+sh.w/2, cy = sh.y+sh.h/2;
-    if (Math.hypot(px-cx, py-cy) <= 10) return 'move';
-    return null;
-  }
   var handles = getHandles(sh);
   for (var i=0; i<handles.length; i++) {
     if (Math.hypot(px-handles[i].x, py-handles[i].y) <= HANDLE_R+3)
