@@ -1,5 +1,5 @@
 /**
- * post-viewer.js — /BeomBlogs/ paths, edit button, glass tile layout
+ * post-viewer.js — glass tile, edit button, dark mode toggle
  */
 (async () => {
   const article = document.getElementById('post-article');
@@ -12,17 +12,18 @@
     return;
   }
 
+  // ── Dark mode toggle (injected early so it shows during load) ──
+  injectDarkToggle();
+
   // 1. Load metadata
   let meta = null;
   try {
     const res  = await fetch(BASE + '/posts/index.json');
     const list = await res.json();
     meta = list.find(p => p.slug === slug);
-  } catch (e) {
-    console.error('index.json load failed:', e);
-  }
+  } catch (e) { console.error('index.json:', e); }
 
-  // 2. Load Markdown file
+  // 2. Load Markdown
   let markdown = '';
   try {
     const res = await fetch(BASE + '/posts/' + slug + '.md');
@@ -30,23 +31,20 @@
     markdown = await res.text();
   } catch (e) {
     article.innerHTML =
-      '<div class="post-glass">' +
-        '<div class="post-header">' +
-          '<div class="post-header-meta"><a href="' + BASE + '/index.html" class="post-back-link">Home</a></div>' +
-          '<h1 class="post-title">Post not found</h1>' +
-        '</div>' +
-        '<div class="post-body">' +
-          '<p>Could not load <code>' + slug + '.md</code>.</p>' +
-          '<p><a href="' + BASE + '/index.html">\u2190 Back to home</a></p>' +
-        '</div>' +
-      '</div>';
+      '<div class="post-glass"><div class="post-header">' +
+        '<div class="post-header-meta"><a href="' + BASE + '/index.html" class="post-back-link">Home</a></div>' +
+        '<h1 class="post-title">Post not found</h1>' +
+      '</div><div class="post-body">' +
+        '<p>Could not load <code>' + slug + '.md</code>.</p>' +
+        '<p><a href="' + BASE + '/index.html">\u2190 Back to home</a></p>' +
+      '</div></div>';
     return;
   }
 
-  // 3. Strip YAML front-matter
+  // 3. Strip front-matter
   let body = markdown.replace(/^---[\s\S]*?---\n?/, '').trim();
 
-  // 4. Pre-process [viz: filename.html] → placeholder
+  // 4. Viz placeholders
   const vizMap = {};
   let vizIdx = 0;
   body = body.replace(/\[viz:\s*([^\]]+)\]/g, function(_, fname) {
@@ -64,22 +62,20 @@
     html = '<p style="color:red;">marked.js not loaded.</p><pre>' + body + '</pre>';
   }
 
-  // 6. Replace viz placeholders with iframes
+  // 6. Replace viz placeholders
   Object.keys(vizMap).forEach(function(key) {
     var fname = vizMap[key];
-    var iframe =
+    html = html.replace('<p>' + key + '</p>',
       '<div class="viz-embed">' +
         '<div class="viz-embed-label">Interactive Visualization</div>' +
         '<iframe src="' + BASE + '/visualizations/' + fname + '" style="height:440px;" frameborder="0" allowfullscreen loading="lazy" title="' + fname + '"></iframe>' +
         '<p class="viz-embed-caption">' + fname + '</p>' +
-      '</div>';
-    html = html.replace('<p>' + key + '</p>', iframe);
+      '</div>');
   });
 
-  // 7. Build page — edit button in header
+  // 7. Build page
   var tagsHtml = (meta && meta.tags)
-    ? meta.tags.map(function(t){ return '<span class="post-tag">' + t + '</span>'; }).join('')
-    : '';
+    ? meta.tags.map(function(t){ return '<span class="post-tag">' + t + '</span>'; }).join('') : '';
   var dateHtml = meta ? '<span class="post-date">' + formatDate(meta.date) + '</span>' : '';
   var title    = meta ? meta.title : slug;
   var editUrl  = BASE + '/admin/editor.html?edit=' + slug;
@@ -109,7 +105,7 @@
     });
   }
 
-  // 9. KaTeX math rendering
+  // 9. KaTeX
   if (typeof renderMathInElement !== 'undefined') {
     renderMathInElement(document.getElementById('post-body'), {
       delimiters: [
@@ -122,8 +118,30 @@
     });
   }
 
+  // ── Helpers ──────────────────────────────────────────────
   function formatDate(dateStr) {
     var d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  }
+
+  function injectDarkToggle() {
+    // Restore preference from localStorage
+    var saved = localStorage.getItem('beom-reader-dark');
+    if (saved === 'true') document.body.classList.add('dark-reader');
+
+    var btn = document.createElement('button');
+    btn.className = 'dark-mode-toggle';
+    btn.setAttribute('aria-label', 'Toggle reading mode');
+    btn.innerHTML = '<span class="toggle-icon">' + (document.body.classList.contains('dark-reader') ? '\u2600\uFE0F' : '\uD83C\uDF19') + '</span>' +
+                    '<span class="toggle-label">' + (document.body.classList.contains('dark-reader') ? 'Light' : 'Dark') + '</span>';
+
+    btn.addEventListener('click', function() {
+      var isDark = document.body.classList.toggle('dark-reader');
+      localStorage.setItem('beom-reader-dark', isDark);
+      btn.innerHTML = '<span class="toggle-icon">' + (isDark ? '\u2600\uFE0F' : '\uD83C\uDF19') + '</span>' +
+                      '<span class="toggle-label">' + (isDark ? 'Light' : 'Dark') + '</span>';
+    });
+
+    document.body.appendChild(btn);
   }
 })();
