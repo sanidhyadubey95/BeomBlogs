@@ -642,20 +642,51 @@ function clearCanvas() {
 // ─── Export to post ───────────────────────────────────────────────────────────
 function insertDrawing() {
   hideTextInput();
-  drawState.selectedIdx=-1;
-  redraw(); // draw final state without handles
+  drawState.selectedIdx = -1;
+  redraw();
 
   var dataUrl  = canvas.toDataURL('image/png');
-  var filename = 'drawing-'+Date.now()+'.png';
-  var md = '![Drawing]('+dataUrl+')';
+  var filename = 'drawing-' + Date.now() + '.png';
 
-  if (typeof insertAtCursor==='function')      insertAtCursor('\n'+md+'\n');
-  else if (typeof insertSnippet==='function')  insertSnippet('\n'+md+'\n','');
+  // Download the PNG file
+  var a = document.createElement('a');
+  a.href = dataUrl; a.download = filename; a.click();
 
-  var a=document.createElement('a'); a.href=dataUrl; a.download=filename; a.click();
-  setDrawStatus('Inserted! PNG also downloaded as '+filename);
+  // Insert clean short tag — no base64 blob in markdown
+  var tag = '[drawing: ' + filename + ']';
+  if (typeof insertAtCursor === 'function')     insertAtCursor('\n' + tag + '\n');
+  else if (typeof insertSnippet === 'function') insertSnippet('\n' + tag + '\n', '');
+
   closeDrawing();
+  showDrawingInsertModal(filename);
 }
+
+function showDrawingInsertModal(filename) {
+  var old = document.getElementById('draw-insert-modal');
+  if (old) old.remove();
+  var m = document.createElement('div');
+  m.id = 'draw-insert-modal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center';
+  var cs = 'background:#ede9e2;padding:.1em .35em;border-radius:3px;font-size:.85em;color:#c84b20;font-family:DM Mono,monospace';
+  m.innerHTML =
+    '<div style="background:#faf8f5;border:1px solid #d8d2c8;border-radius:10px;padding:2rem 2.2rem;max-width:480px;width:94vw;font-family:DM Sans,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.25)">' +
+    '<h3 style="font-size:1rem;font-weight:600;margin-bottom:.6rem;color:#1a1714">Drawing inserted ✓</h3>' +
+    '<p style="font-size:.82rem;color:#4a4540;line-height:1.65;margin-bottom:1.1rem">' +
+      'Downloaded as <code style="'+cs+'">'+filename+'</code>. Follow these steps:' +
+    '</p>' +
+    '<ol style="font-size:.82rem;color:#4a4540;line-height:2;padding-left:1.4rem;margin-bottom:1.4rem">' +
+      '<li>In your repo, create a <code style="'+cs+'">drawings/</code> folder at the root (same level as <code style="'+cs+'">posts/</code>).</li>' +
+      '<li>Upload <code style="'+cs+'">'+filename+'</code> into that <code style="'+cs+'">drawings/</code> folder and commit.</li>' +
+      '<li>The tag <code style="'+cs+'">[drawing: '+filename+']</code> is already in your post. No other changes needed.</li>' +
+      '<li>Publish as usual — it renders automatically.</li>' +
+    '</ol>' +
+    '<button onclick="document.getElementById('draw-insert-modal').remove()" ' +
+      'style="background:#c84b20;color:#fff;border:none;border-radius:4px;padding:.38rem 1.1rem;font-size:.8rem;cursor:pointer;font-family:inherit">Got it</button>' +
+    '</div>';
+  document.body.appendChild(m);
+  m.addEventListener('mousedown', function(e){ if(e.target===m) m.remove(); });
+}
+
 
 // ─── Status & misc ────────────────────────────────────────────────────────────
 function setDrawStatus(msg){var el=document.getElementById('draw-status');if(el)el.textContent=msg;}

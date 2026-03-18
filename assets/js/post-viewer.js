@@ -44,12 +44,21 @@
   // 3. Strip front-matter
   let body = markdown.replace(/^---[\s\S]*?---\n?/, '').trim();
 
-  // 4. Viz placeholders
+  // 4a. Viz placeholders
   const vizMap = {};
   let vizIdx = 0;
   body = body.replace(/\[viz:\s*([^\]]+)\]/g, function(_, fname) {
     const key = 'VIZ_PLACEHOLDER_' + vizIdx++;
     vizMap[key] = fname.trim();
+    return '<p>' + key + '</p>';
+  });
+
+  // 4b. Drawing placeholders — [drawing: filename.png]
+  const drawMap = {};
+  let drawIdx = 0;
+  body = body.replace(/\[drawing:\s*([^\]]+)\]/g, function(_, fname) {
+    const key = 'DRAW_PLACEHOLDER_' + drawIdx++;
+    drawMap[key] = fname.trim();
     return '<p>' + key + '</p>';
   });
 
@@ -62,7 +71,7 @@
     html = '<p style="color:red;">marked.js not loaded.</p><pre>' + body + '</pre>';
   }
 
-  // 6. Replace viz placeholders
+  // 6a. Replace viz placeholders
   Object.keys(vizMap).forEach(function(key) {
     var fname = vizMap[key];
     html = html.replace('<p>' + key + '</p>',
@@ -71,6 +80,17 @@
         '<iframe src="' + BASE + '/visualizations/' + fname + '" style="height:440px;" frameborder="0" allowfullscreen loading="lazy" title="' + fname + '"></iframe>' +
         '<p class="viz-embed-caption">' + fname + '</p>' +
       '</div>');
+  });
+
+  // 6b. Replace drawing placeholders — renders as a simple centred image
+  Object.keys(drawMap).forEach(function(key) {
+    var fname = drawMap[key];
+    html = html.replace('<p>' + key + '</p>',
+      '<figure class="drawing-embed">' +
+        '<img src="' + BASE + '/drawings/' + fname + '" alt="Drawing" loading="lazy" ' +
+          'style="max-width:100%;height:auto;border-radius:8px;border:1px solid var(--border);display:block;margin:0 auto"/>' +
+        '<figcaption>' + fname + '</figcaption>' +
+      '</figure>');
   });
 
   // 7. Build page
