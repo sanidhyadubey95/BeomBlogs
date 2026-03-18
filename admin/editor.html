@@ -22,6 +22,36 @@
     html,body{height:100%;overflow:hidden}
     body{font-family:var(--ff-sans);background:var(--cream);color:var(--ink);display:flex;flex-direction:column}
 
+
+    /* ── Drawing modal ── */
+    .draw-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+    .draw-overlay.open{display:flex}
+    .draw-modal{background:var(--paper);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;max-width:96vw;max-height:94vh;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28)}
+    .draw-header{display:flex;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--cream);gap:.75rem;flex-shrink:0}
+    .draw-title{font-family:var(--ff-mono);font-size:.8rem;font-weight:500;color:var(--ink)}
+    .draw-header-right{margin-left:auto;display:flex;gap:.4rem;align-items:center}
+    .draw-btn-sm{font-family:var(--ff-sans);font-size:.72rem;padding:.25rem .65rem;border-radius:4px;cursor:pointer;border:1px solid var(--border);background:var(--paper);color:var(--ink-mid);transition:all .15s}
+    .draw-btn-sm:hover{background:var(--cream-dk);color:var(--ink)}
+    .draw-btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .draw-btn-primary:hover{background:var(--accent-dk)}
+    .draw-btn-icon{background:none;border:none;font-size:1rem;cursor:pointer;color:var(--ink-light);padding:.2rem .4rem;border-radius:3px}
+    .draw-btn-icon:hover{color:var(--ink);background:var(--cream-dk)}
+    .draw-toolbar{display:flex;align-items:center;padding:.45rem .75rem;border-bottom:1px solid var(--border);background:var(--cream-dk);gap:.5rem;flex-wrap:wrap;flex-shrink:0}
+    .draw-tool-group{display:flex;align-items:center;gap:.25rem}
+    .draw-group-lbl{font-family:var(--ff-mono);font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-light);margin-right:.1rem;white-space:nowrap}
+    .draw-tool{background:var(--paper);border:1px solid var(--border);border-radius:4px;width:28px;height:28px;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;padding:0;color:var(--ink-mid)}
+    .draw-tool:hover{background:var(--cream);color:var(--ink)}
+    .draw-tool.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .draw-color-pick{width:28px;height:28px;border:1px solid var(--border);border-radius:4px;cursor:pointer;padding:1px;background:none}
+    .draw-select{font-family:var(--ff-mono);font-size:.68rem;border:1px solid var(--border);border-radius:4px;background:var(--paper);color:var(--ink-mid);padding:.18rem .35rem;cursor:pointer;outline:none}
+    .draw-check-lbl{font-family:var(--ff-mono);font-size:.7rem;color:var(--ink-mid);display:flex;align-items:center;gap:.25rem;cursor:pointer;white-space:nowrap}
+    .draw-sep{width:1px;height:24px;background:var(--border);margin:0 .15rem;flex-shrink:0}
+    .draw-canvas-wrap{position:relative;overflow:auto;flex:1;background:#f0ede6;display:flex;align-items:flex-start;justify-content:flex-start;padding:1rem}
+    #draw-canvas{display:block;background:#fff;cursor:crosshair;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+    #draw-overlay-canvas{position:absolute;top:1rem;left:1rem;pointer-events:none}
+    .draw-text-input{position:absolute;background:transparent;border:1.5px dashed var(--accent);outline:none;font-family:var(--ff-sans);padding:.15rem .3rem;min-width:80px;z-index:10}
+    .draw-statusbar{padding:.3rem .75rem;font-family:var(--ff-mono);font-size:.65rem;color:var(--ink-light);background:var(--cream);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0}
+
     /* ── Topbar ── */
     .topbar{display:flex;align-items:center;gap:.75rem;padding:0 1.25rem;height:50px;
       background:var(--paper);border-bottom:1px solid var(--border);flex-shrink:0;z-index:100}
@@ -279,6 +309,8 @@
       <button class="ib-btn" onclick="insertSnippet('![alt](',')')">🖼</button>
       <div class="ib-sep"></div>
       <button class="ib-btn" data-picker="emoji" onclick="showEmojiPicker(event)">😊 Emoji</button>
+      <div class="ib-sep"></div>
+      <button class="ib-btn" onclick="openDrawing()">✏️ Draw</button>
     </div>
 
     <!-- Hint -->
@@ -418,6 +450,117 @@
     </div>
   </div>
 </div>
+
+<!-- Drawing modal -->
+<div class="draw-overlay" id="draw-overlay">
+  <div class="draw-modal">
+    <!-- Header -->
+    <div class="draw-header">
+      <span class="draw-title">✏️ Create Drawing</span>
+      <div class="draw-header-right">
+        <button class="draw-btn-sm" onclick="clearCanvas()" title="Clear canvas">🗑 Clear</button>
+        <button class="draw-btn-sm draw-btn-primary" onclick="insertDrawing()">Insert into post</button>
+        <button class="draw-btn-icon" onclick="closeDrawing()" title="Close">✕</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="draw-toolbar">
+      <!-- Tools -->
+      <div class="draw-tool-group">
+        <span class="draw-group-lbl">Tool</span>
+        <button class="draw-tool active" id="tool-pen"     onclick="setTool('pen')"     title="Pen">✏️</button>
+        <button class="draw-tool"        id="tool-line"    onclick="setTool('line')"    title="Line">╱</button>
+        <button class="draw-tool"        id="tool-rect"    onclick="setTool('rect')"    title="Rectangle">▭</button>
+        <button class="draw-tool"        id="tool-circle"  onclick="setTool('circle')"  title="Circle">○</button>
+        <button class="draw-tool"        id="tool-arrow"   onclick="setTool('arrow')"   title="Arrow">→</button>
+        <button class="draw-tool"        id="tool-text"    onclick="setTool('text')"    title="Text">T</button>
+        <button class="draw-tool"        id="tool-eraser"  onclick="setTool('eraser')"  title="Eraser">⌫</button>
+        <button class="draw-tool"        id="tool-select"  onclick="setTool('select')"  title="Select/Move">↖</button>
+      </div>
+
+      <div class="draw-sep"></div>
+
+      <!-- Shapes -->
+      <div class="draw-tool-group">
+        <span class="draw-group-lbl">Shapes</span>
+        <button class="draw-tool" onclick="insertShape('triangle')"  title="Triangle">△</button>
+        <button class="draw-tool" onclick="insertShape('star')"      title="Star">★</button>
+        <button class="draw-tool" onclick="insertShape('diamond')"   title="Diamond">◇</button>
+        <button class="draw-tool" onclick="insertShape('hexagon')"   title="Hexagon">⬡</button>
+      </div>
+
+      <div class="draw-sep"></div>
+
+      <!-- Stroke -->
+      <div class="draw-tool-group">
+        <span class="draw-group-lbl">Stroke</span>
+        <input type="color" id="stroke-color" value="#1a1714" title="Stroke color" class="draw-color-pick" onchange="updateStroke()"/>
+        <select class="draw-select" id="stroke-width" onchange="updateStroke()">
+          <option value="1">1px</option>
+          <option value="2" selected>2px</option>
+          <option value="3">3px</option>
+          <option value="5">5px</option>
+          <option value="8">8px</option>
+          <option value="12">12px</option>
+        </select>
+        <select class="draw-select" id="stroke-style" onchange="updateStroke()">
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="dotted">Dotted</option>
+        </select>
+      </div>
+
+      <div class="draw-sep"></div>
+
+      <!-- Fill -->
+      <div class="draw-tool-group">
+        <span class="draw-group-lbl">Fill</span>
+        <input type="color" id="fill-color" value="#ffffff" title="Fill color" class="draw-color-pick" onchange="updateFill()"/>
+        <label class="draw-check-lbl"><input type="checkbox" id="fill-enable" onchange="updateFill()"> Fill</label>
+      </div>
+
+      <div class="draw-sep"></div>
+
+      <!-- Canvas size -->
+      <div class="draw-tool-group">
+        <span class="draw-group-lbl">Size</span>
+        <select class="draw-select" id="canvas-size" onchange="resizeCanvas()">
+          <option value="800x400">Wide (800×400)</option>
+          <option value="600x400" selected>Medium (600×400)</option>
+          <option value="600x600">Square (600×600)</option>
+          <option value="400x300">Small (400×300)</option>
+        </select>
+      </div>
+
+      <div class="draw-sep"></div>
+
+      <!-- History -->
+      <div class="draw-tool-group">
+        <span class="draw-group-lbl">History</span>
+        <button class="draw-tool" onclick="undoDraw()" title="Undo">↩</button>
+        <button class="draw-tool" onclick="redoDraw()" title="Redo">↪</button>
+      </div>
+    </div>
+
+    <!-- Canvas area -->
+    <div class="draw-canvas-wrap" id="draw-canvas-wrap">
+      <canvas id="draw-canvas"></canvas>
+      <canvas id="draw-overlay-canvas"></canvas>
+      <!-- Text input overlay -->
+      <input type="text" id="draw-text-input" class="draw-text-input" placeholder="Type here, Enter to place"
+             onkeydown="handleDrawTextKey(event)" style="display:none"/>
+    </div>
+
+    <!-- Status bar -->
+    <div class="draw-statusbar">
+      <span id="draw-status">Ready — select a tool and draw on the canvas</span>
+      <span id="draw-coords" style="margin-left:auto;font-family:var(--ff-mono);font-size:.65rem;color:var(--ink-light)"></span>
+    </div>
+  </div>
+</div>
+
+<script src="drawing.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
