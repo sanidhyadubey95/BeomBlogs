@@ -1,5 +1,5 @@
 /**
- * post-viewer.js — glass tile, edit button, dark mode toggle
+ * post-viewer.js — glass tile, edit button, dark mode toggle (icon only)
  */
 (async () => {
   const article = document.getElementById('post-article');
@@ -12,7 +12,7 @@
     return;
   }
 
-  // ── Dark mode toggle (injected early so it shows during load) ──
+  // Inject dark toggle immediately so it shows during load
   injectDarkToggle();
 
   // 1. Load metadata
@@ -118,28 +118,28 @@
     });
   }
 
-  // ── Helpers ──────────────────────────────────────────────
   function formatDate(dateStr) {
     var d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
   }
 
   function injectDarkToggle() {
-    // Restore preference from localStorage
     var saved = localStorage.getItem('beom-reader-dark');
     if (saved === 'true') document.body.classList.add('dark-reader');
 
     var btn = document.createElement('button');
     btn.className = 'dark-mode-toggle';
     btn.setAttribute('aria-label', 'Toggle reading mode');
-    btn.innerHTML = '<span class="toggle-icon">' + (document.body.classList.contains('dark-reader') ? '\u2600\uFE0F' : '\uD83C\uDF19') + '</span>' +
-                    '<span class="toggle-label">' + (document.body.classList.contains('dark-reader') ? 'Light' : 'Dark') + '</span>';
+
+    function updateIcon() {
+      btn.textContent = document.body.classList.contains('dark-reader') ? '\u2600\uFE0F' : '\uD83C\uDF19';
+    }
+    updateIcon();
 
     btn.addEventListener('click', function() {
       var isDark = document.body.classList.toggle('dark-reader');
       localStorage.setItem('beom-reader-dark', isDark);
-      btn.innerHTML = '<span class="toggle-icon">' + (isDark ? '\u2600\uFE0F' : '\uD83C\uDF19') + '</span>' +
-                      '<span class="toggle-label">' + (isDark ? 'Light' : 'Dark') + '</span>';
+      updateIcon();
     });
 
     document.body.appendChild(btn);
