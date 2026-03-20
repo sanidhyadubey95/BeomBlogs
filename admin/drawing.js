@@ -57,11 +57,20 @@ function makeShape(type, x, y, w, h) {
 
 // ─── Open / Close ─────────────────────────────────────────────────────────────
 function openDrawing() {
-  document.getElementById('draw-overlay').classList.add('open');
+  var ov = document.getElementById('draw-overlay');
+  if (!ov) { alert('Drawing modal not found. Please refresh the page.'); return; }
+  ov.classList.add('open');
+  // Belt-and-suspenders: force display in case CSS class doesn't apply
+  ov.style.display = 'flex';
+  ov.style.alignItems = 'center';
+  ov.style.justifyContent = 'center';
   if (!canvas) initDrawingCanvas();
 }
 function closeDrawing() {
-  document.getElementById('draw-overlay').classList.remove('open');
+  var ov = document.getElementById('draw-overlay');
+  if (!ov) return;
+  ov.classList.remove('open');
+  ov.style.display = 'none';
   hideTextInput();
 }
 
